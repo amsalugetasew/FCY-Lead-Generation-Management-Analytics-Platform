@@ -1,0 +1,238 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { 
+  LayoutDashboard, 
+  BarChart3, 
+  Users2, 
+  UploadCloud, 
+  FileSpreadsheet, 
+  Wallet,
+  ShieldCheck,
+  LogOut,
+  Lock,
+  ChevronLeft,
+  ChevronRight,
+  User
+} from "lucide-react";
+
+export default function Sidebar() {
+  const pathname = usePathname();
+  const [user, setUser] = useState<any>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [avatar, setAvatar] = useState<string | null>(null);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("fcy_user");
+    if (userStr) {
+      try {
+        setUser(JSON.parse(userStr));
+      } catch (e) {
+        setUser(null);
+      }
+    }
+
+    // Read avatar from localStorage
+    const savedAvatar = localStorage.getItem("fcy_user_avatar");
+    if (savedAvatar) {
+      setAvatar(savedAvatar);
+    }
+  }, []);
+
+  const navItems = [
+    {
+      name: "Dashboard",
+      href: "/",
+      icon: LayoutDashboard,
+      roles: ["Admin", "Head Office", "Region", "District", "Branch"]
+    },
+    {
+      name: "Performance Rankings",
+      href: "/rankings",
+      icon: BarChart3,
+      roles: ["Admin", "Head Office", "Region", "District"]
+    },
+    {
+      name: "Lead Management",
+      href: "/leads",
+      icon: Users2,
+      roles: ["Admin", "Head Office", "Region", "District", "Branch"]
+    },
+    {
+      name: "Manual Uploads",
+      href: "/uploads",
+      icon: UploadCloud,
+      roles: ["Admin", "Head Office", "Region"]
+    },
+    {
+      name: "Reports Export",
+      href: "/reports",
+      icon: FileSpreadsheet,
+      roles: ["Admin", "Head Office", "Region", "District", "Branch"]
+    },
+    {
+      name: "Change Password",
+      href: "/change-password",
+      icon: Lock,
+      roles: ["Admin", "Head Office", "Region", "District", "Branch"]
+    },
+    {
+      name: "User Management",
+      href: "/users",
+      icon: ShieldCheck,
+      roles: ["Admin"]
+    }
+  ];
+
+  const handleSignOut = () => {
+    localStorage.removeItem("fcy_token");
+    localStorage.removeItem("fcy_user");
+    window.location.href = "/login";
+  };
+
+  if (!user) return null;
+
+  return (
+    <aside 
+      className={`${
+        isCollapsed ? "w-20" : "w-64"
+      } bg-white border-r border-slate-200 text-slate-600 flex flex-col h-full transition-all duration-300 ease-in-out relative`}
+    >
+      {/* Collapse/Expand Toggle Button */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="absolute -right-3.5 top-5 h-7 w-7 bg-white border border-slate-200 rounded-full shadow-md flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition cursor-pointer z-20"
+        title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+      >
+        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
+
+      {/* Brand Header */}
+      <div 
+        className={`p-6 border-b border-slate-200/80 flex items-center gap-3 ${
+          isCollapsed ? "justify-center" : ""
+        }`}
+      >
+        <div className="p-2 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-xl text-white shadow-md shadow-indigo-500/20 flex-shrink-0">
+          <Wallet size={20} className="animate-pulse" />
+        </div>
+        {!isCollapsed && (
+          <div className="flex flex-col animate-in fade-in duration-200">
+            <span className="font-bold text-slate-800 tracking-wide text-sm leading-none">CBE FCY Portal</span>
+            <span className="text-[10px] text-slate-400 font-semibold mt-1">Lead Mobilization</span>
+          </div>
+        )}
+      </div>
+
+      {/* User Information Profile Box */}
+      <div 
+        className={`mx-4 my-6 p-4 bg-slate-50 border border-slate-100 rounded-xl flex flex-col gap-3 shadow-sm ${
+          isCollapsed ? "items-center px-2" : ""
+        }`}
+      >
+        {!isCollapsed ? (
+          <div className="flex items-center gap-3 animate-in fade-in duration-200">
+            {/* Round avatar representation */}
+            <div className="h-9 w-9 rounded-full overflow-hidden border border-slate-200 flex items-center justify-center bg-slate-100 flex-shrink-0">
+              {avatar ? (
+                <img src={avatar} alt="Sidebar Profile" className="h-full w-full object-cover" />
+              ) : (
+                <User size={14} className="text-slate-400" />
+              )}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs text-slate-800 font-bold truncate" title={user.full_name}>
+                {user.full_name}
+              </span>
+              <span className="text-[9px] text-slate-400 truncate leading-none mt-0.5" title={user.position}>
+                {user.position}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="h-9 w-9 rounded-full overflow-hidden border border-slate-200 flex items-center justify-center bg-slate-100 relative shadow-inner">
+            {avatar ? (
+              <img src={avatar} alt="Sidebar Profile" className="h-full w-full object-cover" />
+            ) : (
+              <User size={14} className="text-slate-400" />
+            )}
+            <div className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border border-white ${
+              user.level === "Admin" ? "bg-rose-500" : "bg-indigo-500"
+            }`} />
+          </div>
+        )}
+
+        {!isCollapsed && (
+          <div className="border-t border-slate-200/60 pt-2 flex justify-between items-center animate-in fade-in duration-200">
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Access Scope:</span>
+            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-semibold border ${
+              user.level === "Head Office" 
+                ? "bg-purple-50 text-purple-600 border-purple-200/60" 
+                : user.level === "Region"
+                ? "bg-blue-50 text-blue-600 border-blue-200/60"
+                : user.level === "District"
+                ? "bg-amber-50 text-amber-600 border-amber-200/60"
+                : user.level === "Admin"
+                ? "bg-rose-50 text-rose-600 border-rose-200/60"
+                : "bg-emerald-50 text-emerald-600 border-emerald-200/60"
+            }`}>
+              {user.level}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Links */}
+      <nav className="flex-1 px-4 space-y-1">
+        {navItems.map((item) => {
+          const isAllowed = item.roles.includes(user.level);
+          const isActive = pathname === item.href;
+          
+          if (!isAllowed) return null;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
+                isActive
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                  : "hover:bg-slate-100 hover:text-slate-900"
+              } ${isCollapsed ? "justify-center px-0" : ""}`}
+              title={isCollapsed ? item.name : ""}
+            >
+              <item.icon 
+                size={18} 
+                className={`transition-colors duration-200 flex-shrink-0 ${
+                  isActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
+                }`} 
+              />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">{item.name}</span>}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Sign Out & Footer */}
+      <div className={`p-4 border-t border-slate-200/80 flex flex-col gap-2.5 ${isCollapsed ? "items-center" : ""}`}>
+        <button
+          onClick={handleSignOut}
+          className={`py-2 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-650 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+            isCollapsed ? "px-2.5" : "w-full"
+          }`}
+          title={isCollapsed ? "Sign Out" : ""}
+        >
+          <LogOut size={13} className="flex-shrink-0" />
+          {!isCollapsed && <span className="animate-in fade-in duration-200">Sign Out</span>}
+        </button>
+        {!isCollapsed && (
+          <div className="text-[10px] text-slate-400 text-center font-medium mt-1 animate-in fade-in duration-200">
+            © 2026 CBE Retail Banking.
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
