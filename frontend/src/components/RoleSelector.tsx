@@ -72,7 +72,7 @@ export default function RoleSelector() {
   const handleRoleSwitch = async (username: string) => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -97,7 +97,7 @@ export default function RoleSelector() {
       window.location.reload();
     } catch (err) {
       console.error("Authentication switch failed:", err);
-      alert("Failed to switch role. Ensure the FastAPI backend is running on localhost:8000!");
+      alert("Failed to switch role. Ensure the FastAPI backend is running.");
     } finally {
       setLoading(false);
     }

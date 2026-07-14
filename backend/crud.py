@@ -88,15 +88,22 @@ def get_leads(
     query = apply_rbac_filter(query, user, Lead)
     
     # Apply multi-dimensional filters
+    branch_joined = user.level in ["Region", "District"]
+    district_joined = user.level in ["Region"]
+
     if region_id:
-        # Check if we already joined Branch/District in apply_rbac_filter to avoid multiple joins
-        # SQLAlchemy is smart, but let's safely query
-        query = query.join(Branch, Lead.assigned_branch_id == Branch.id)\
-                     .join(District, Branch.district_id == District.id)\
-                     .filter(District.region_id == region_id)
+        if not branch_joined:
+            query = query.join(Branch, Lead.assigned_branch_id == Branch.id)
+            branch_joined = True
+        if not district_joined:
+            query = query.join(District, Branch.district_id == District.id)
+            district_joined = True
+        query = query.filter(District.region_id == region_id)
     elif district_id:
-        query = query.join(Branch, Lead.assigned_branch_id == Branch.id)\
-                     .filter(Branch.district_id == district_id)
+        if not branch_joined:
+            query = query.join(Branch, Lead.assigned_branch_id == Branch.id)
+            branch_joined = True
+        query = query.filter(Branch.district_id == district_id)
     elif branch_id:
         query = query.filter(Lead.assigned_branch_id == branch_id)
         
@@ -193,19 +200,45 @@ def get_dashboard_stats(
     lead_query = db.query(Lead)
     lead_query = apply_rbac_filter(lead_query, user, Lead)
     
-    # Apply filtering to transactions
+    # Apply filtering to transactions and leads
+    tx_branch_joined = user.level in ["Region", "District"]
+    tx_district_joined = user.level in ["Region"]
+    
+    lead_branch_joined = user.level in ["Region", "District"]
+    lead_district_joined = user.level in ["Region"]
+
     if region_id:
-        tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id)\
-                           .join(District, Branch.district_id == District.id)\
-                           .filter(District.region_id == region_id)
-        lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id)\
-                               .join(District, Branch.district_id == District.id)\
-                               .filter(District.region_id == region_id)
+        # Transactions
+        if not tx_branch_joined:
+            tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id)
+            tx_branch_joined = True
+        if not tx_district_joined:
+            tx_query = tx_query.join(District, Branch.district_id == District.id)
+            tx_district_joined = True
+        tx_query = tx_query.filter(District.region_id == region_id)
+        
+        # Leads
+        if not lead_branch_joined:
+            lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id)
+            lead_branch_joined = True
+        if not lead_district_joined:
+            lead_query = lead_query.join(District, Branch.district_id == District.id)
+            lead_district_joined = True
+        lead_query = lead_query.filter(District.region_id == region_id)
+        
     elif district_id:
-        tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id)\
-                           .filter(Branch.district_id == district_id)
-        lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id)\
-                               .filter(Branch.district_id == district_id)
+        # Transactions
+        if not tx_branch_joined:
+            tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id)
+            tx_branch_joined = True
+        tx_query = tx_query.filter(Branch.district_id == district_id)
+        
+        # Leads
+        if not lead_branch_joined:
+            lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id)
+            lead_branch_joined = True
+        lead_query = lead_query.filter(Branch.district_id == district_id)
+        
     elif branch_id:
         tx_query = tx_query.filter(Transaction.branch_id == branch_id)
         lead_query = lead_query.filter(Lead.assigned_branch_id == branch_id)
@@ -289,12 +322,44 @@ def get_trend_data(
     lead_query = db.query(Lead)
     lead_query = apply_rbac_filter(lead_query, user, Lead)
     
+    tx_branch_joined = user.level in ["Region", "District"]
+    tx_district_joined = user.level in ["Region"]
+    
+    lead_branch_joined = user.level in ["Region", "District"]
+    lead_district_joined = user.level in ["Region"]
+
     if region_id:
-        tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id).join(District, Branch.district_id == District.id).filter(District.region_id == region_id)
-        lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id).join(District, Branch.district_id == District.id).filter(District.region_id == region_id)
+        # Transactions
+        if not tx_branch_joined:
+            tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id)
+            tx_branch_joined = True
+        if not tx_district_joined:
+            tx_query = tx_query.join(District, Branch.district_id == District.id)
+            tx_district_joined = True
+        tx_query = tx_query.filter(District.region_id == region_id)
+        
+        # Leads
+        if not lead_branch_joined:
+            lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id)
+            lead_branch_joined = True
+        if not lead_district_joined:
+            lead_query = lead_query.join(District, Branch.district_id == District.id)
+            lead_district_joined = True
+        lead_query = lead_query.filter(District.region_id == region_id)
+        
     elif district_id:
-        tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id).filter(Branch.district_id == district_id)
-        lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id).filter(Branch.district_id == district_id)
+        # Transactions
+        if not tx_branch_joined:
+            tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id)
+            tx_branch_joined = True
+        tx_query = tx_query.filter(Branch.district_id == district_id)
+        
+        # Leads
+        if not lead_branch_joined:
+            lead_query = lead_query.join(Branch, Lead.assigned_branch_id == Branch.id)
+            lead_branch_joined = True
+        lead_query = lead_query.filter(Branch.district_id == district_id)
+        
     elif branch_id:
         tx_query = tx_query.filter(Transaction.branch_id == branch_id)
         lead_query = lead_query.filter(Lead.assigned_branch_id == branch_id)

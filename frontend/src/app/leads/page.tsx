@@ -48,7 +48,7 @@ export default function Leads() {
   }, []);
 
   const fetchLeads = async () => {
-    if (!token) return;
+    if (!token || typeof token !== "string") return;
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -58,12 +58,24 @@ export default function Leads() {
       if (selectedStatus) params.append("status", selectedStatus);
       if (selectedPriority) params.append("priority", selectedPriority);
 
-      const res = await fetch(`http://localhost:8000/api/leads/?${params.toString()}`, {
+      const res = await fetch(`/api/leads/?${params.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
+
+      if (res.status === 401) {
+        // Token is stale/invalid — clear it so ClientLayoutWrapper redirects to login
+        localStorage.removeItem("fcy_token");
+        localStorage.removeItem("fcy_user");
+        window.location.href = "/login";
+        return;
+      }
+
       if (res.ok) {
         const data = await res.json();
         setLeads(data);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Leads fetch error:", res.status, errData);
       }
     } catch (err) {
       console.error("Error fetching leads list:", err);
@@ -77,11 +89,11 @@ export default function Leads() {
   }, [token, search, selectedType, selectedCategory, selectedStatus, selectedPriority]);
 
   const handleGenerateLeads = async () => {
-    if (!token) return;
+    if (!token || typeof token !== "string") return;
     setGenerating(true);
     setMessage("");
     try {
-      const res = await fetch("http://localhost:8000/api/leads/generate", {
+      const res = await fetch("/api/leads/generate", {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -111,7 +123,7 @@ export default function Leads() {
     e.preventDefault();
     if (!token || !selectedLead) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/leads/${selectedLead.id}/followup`, {
+      const res = await fetch(`/api/leads/${selectedLead.id}/followup`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -159,8 +171,8 @@ export default function Leads() {
     <div className="flex flex-col gap-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 leading-tight">Lead Management Portal</h2>
+        <div className="flex flex-row gap-1 items-center">
+          <h2 className="text-2xl font-bold text-slate-800 leading-tight mr-3">Lead Management Portal</h2>
           <p className="text-slate-500 text-xs mt-1">Track and manage foreign exchange leads from assignment to conversions.</p>
         </div>
         
@@ -170,12 +182,14 @@ export default function Leads() {
             <button
               onClick={handleGenerateLeads}
               disabled={generating}
-              className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/10 flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] px-4 py-2 transition-colors text-sm font-medium hover:from-[#CFB53B] 
+              hover:to-[#8E288D] hover:text-slate-100 hover:bg-gradient-to-r
+               disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-md shadow-purple-600/10 flex items-center gap-2 cursor-pointer"
             >
               <Sparkles size={14} className={generating ? "animate-spin" : ""} />
               {generating ? "Generating Leads..." : "Trigger Monthly Lead Run"}
             </button>
-            {message && <span className="text-[10px] text-indigo-600 font-semibold">{message}</span>}
+            {message && <span className="text-[10px] text-[#8E288D] font-semibold">{message}</span>}
           </div>
         )}
       </div>

@@ -17,7 +17,8 @@ import {
   ChevronRight,
   User
 } from "lucide-react";
-
+import Image from "next/image";
+import iconImage from "../assets/CBE_Logo.png";
 export default function Sidebar() {
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
@@ -115,23 +116,57 @@ export default function Sidebar() {
           isCollapsed ? "justify-center" : ""
         }`}
       >
-        <div className="p-2 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-xl text-white shadow-md shadow-indigo-500/20 flex-shrink-0">
-          <Wallet size={20} className="animate-pulse" />
-        </div>
         {!isCollapsed && (
+          <div>
+        <div className="p-2 text-white">
+          <Image src={iconImage} alt="FCY Lead Genration" className="w-40 h-24" />
+        </div>
+        
           <div className="flex flex-col animate-in fade-in duration-200">
             <span className="font-bold text-slate-800 tracking-wide text-sm leading-none">CBE FCY Portal</span>
             <span className="text-[10px] text-slate-400 font-semibold mt-1">Lead Mobilization</span>
           </div>
+          </div>
         )}
       </div>
 
+      
+
+      {/* Navigation Links */}
+      <nav className="flex-1 px-4 space-y-1">
+        {navItems.map((item) => {
+          const isAllowed = item.roles.includes(user.level);
+          const isActive = pathname === item.href;
+          
+          if (!isAllowed) return null;
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
+                isActive
+                  ? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-lg px-4 py-2 transition-colors text-sm font-medium"
+                  : "hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-white hover:bg-gradient-to-r"
+              } ${isCollapsed ? "justify-center px-0" : ""}`}
+              title={isCollapsed ? item.name : ""}
+            >
+              <item.icon 
+                size={18} 
+                className={`transition-colors duration-200 flex-shrink-0 ${
+                  isActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
+                }`} 
+              />
+              {!isCollapsed && <span className="animate-in fade-in duration-200">{item.name}</span>}
+            </Link>
+          );
+        })}
+      </nav>
       {/* User Information Profile Box */}
       <div 
         className={`mx-4 my-6 p-4 bg-slate-50 border border-slate-100 rounded-xl flex flex-col gap-3 shadow-sm ${
           isCollapsed ? "items-center px-2" : ""
-        }`}
-      >
+        }`}>
         {!isCollapsed ? (
           <div className="flex items-center gap-3 animate-in fade-in duration-200">
             {/* Round avatar representation */}
@@ -183,37 +218,6 @@ export default function Sidebar() {
           </div>
         )}
       </div>
-
-      {/* Navigation Links */}
-      <nav className="flex-1 px-4 space-y-1">
-        {navItems.map((item) => {
-          const isAllowed = item.roles.includes(user.level);
-          const isActive = pathname === item.href;
-          
-          if (!isAllowed) return null;
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
-                isActive
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
-                  : "hover:bg-slate-100 hover:text-slate-900"
-              } ${isCollapsed ? "justify-center px-0" : ""}`}
-              title={isCollapsed ? item.name : ""}
-            >
-              <item.icon 
-                size={18} 
-                className={`transition-colors duration-200 flex-shrink-0 ${
-                  isActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
-                }`} 
-              />
-              {!isCollapsed && <span className="animate-in fade-in duration-200">{item.name}</span>}
-            </Link>
-          );
-        })}
-      </nav>
 
       {/* Sign Out & Footer */}
       <div className={`p-4 border-t border-slate-200/80 flex flex-col gap-2.5 ${isCollapsed ? "items-center" : ""}`}>

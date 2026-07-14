@@ -41,7 +41,7 @@ def read_leads(
     # Map branch name to leads for response serialization helper
     results = []
     for lead in leads:
-        lead_res = schemas.LeadResponse.from_attributes(lead)
+        lead_res = schemas.LeadResponse.model_validate(lead)
         # Fetch branch name
         branch = db.query(Branch).filter(Branch.id == lead.assigned_branch_id).first()
         lead_res.branch_name = branch.name if branch else "Unknown Branch"
@@ -67,7 +67,7 @@ def read_lead(
             detail="Lead not found or access denied"
         )
     
-    lead_res = schemas.LeadResponse.from_attributes(lead)
+    lead_res = schemas.LeadResponse.model_validate(lead)
     branch = db.query(Branch).filter(Branch.id == lead.assigned_branch_id).first()
     lead_res.branch_name = branch.name if branch else "Unknown Branch"
     
@@ -100,7 +100,7 @@ def update_lead_status(
         status=lead_in.status
     )
     
-    lead_res = schemas.LeadResponse.from_attributes(updated)
+    lead_res = schemas.LeadResponse.model_validate(updated)
     return lead_res
 
 @router.post("/{lead_id}/followup", response_model=schemas.FollowUpResponse)
@@ -127,7 +127,7 @@ def create_followup_record(
         status=followup_in.status
     )
     
-    res = schemas.FollowUpResponse.from_attributes(fu)
+    res = schemas.FollowUpResponse.model_validate(fu)
     res.user_name = current_user.full_name
     return res
 

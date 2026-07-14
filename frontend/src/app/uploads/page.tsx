@@ -28,7 +28,7 @@ export default function ManualUploads() {
   const fetchUploadHistory = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:8000/api/uploads/logs", {
+      const res = await fetch("/api/uploads/logs", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -75,7 +75,7 @@ export default function ManualUploads() {
     const endpoint = uploadType === "bole-atlantic" ? "bole-atlantic" : "walk-in";
 
     try {
-      const res = await fetch(`http://localhost:8000/api/uploads/${endpoint}`, {
+      const res = await fetch(`/api/uploads/${endpoint}`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -162,7 +162,7 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
                     type="button"
                     onClick={() => { setUploadType("bole-atlantic"); setFile(null); }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      uploadType === "bole-atlantic" ? "bg-indigo-600 text-white" : "bg-slate-50 border border-slate-250 text-slate-500 hover:text-slate-700"
+                      uploadType === "bole-atlantic" ? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white" : "bg-slate-50 border border-slate-250 text-slate-500 hover:text-slate-700"
                     }`}
                   >
                     <FileSpreadsheet size={14} />
@@ -172,7 +172,7 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
                     type="button"
                     onClick={() => { setUploadType("walk-in"); setFile(null); }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      uploadType === "walk-in" ? "bg-indigo-600 text-white" : "bg-slate-50 border border-slate-250 text-slate-500 hover:text-slate-700"
+                      uploadType === "walk-in" ? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white" : "bg-slate-50 border border-slate-250 text-slate-500 hover:text-slate-700"
                     }`}
                   >
                     <FileText size={14} />
@@ -216,7 +216,7 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
                 <button
                   type="submit"
                   disabled={!file || uploading}
-                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 cursor-pointer"
+                  className="w-full py-3 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] hover:bg-gradient-to-r hover:from-[#CFB53B] hover:to-[#8E288D] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 cursor-pointer"
                 >
                   {uploading ? "Processing and Analyzing CSV..." : "Process Upload & Refresh Leads"}
                 </button>

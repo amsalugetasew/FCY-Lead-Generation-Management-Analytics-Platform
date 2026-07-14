@@ -25,7 +25,7 @@ export default function Rankings() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:8000/api/analytics/rankings?rank_by=${rankBy}`, {
+      const res = await fetch(`/api/analytics/rankings?rank_by=${rankBy}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       
@@ -57,18 +57,19 @@ export default function Rankings() {
     <div className="flex flex-col gap-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+        <div className="flex flex-row gap-3 items-center">
           <h2 className="text-2xl font-bold text-slate-800 leading-tight">Performance Rankings</h2>
           <p className="text-slate-500 text-xs mt-1">Inter-branch and regional mobilization leaderboards sorted by FCY volumes.</p>
         </div>
         
         {/* Toggle options */}
         {user.level !== "Branch" && (
-          <div className="flex bg-slate-100 border border-slate-200 rounded-xl p-0.5 self-start md:self-auto shadow-sm">
+          <div className="flex">
             <button
               onClick={() => setRankBy("branch")}
               className={`px-4 py-2 text-xs font-bold rounded-lg cursor-pointer transition ${
-                rankBy === "branch" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+                rankBy === "branch" ? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-lg px-4 py-2 transition-colors text-sm font-medium hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-slate-100 hover:bg-gradient-to-r" 
+                : "hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-slate-500 hover:bg-gradient-to-r"
               }`}
             >
               Branch Rankings
@@ -77,7 +78,8 @@ export default function Rankings() {
               <button
                 onClick={() => setRankBy("district")}
                 className={`px-4 py-2 text-xs font-bold rounded-lg cursor-pointer transition ${
-                  rankBy === "district" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+                  rankBy === "district" ? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-lg px-4 py-2 transition-colors text-sm font-medium hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-slate-100 hover:bg-gradient-to-r" 
+                  : "hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-slate-500 hover:bg-gradient-to-r"
                 }`}
               >
                 District Rankings
@@ -87,7 +89,8 @@ export default function Rankings() {
               <button
                 onClick={() => setRankBy("region")}
                 className={`px-4 py-2 text-xs font-bold rounded-lg cursor-pointer transition ${
-                  rankBy === "region" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+                  rankBy === "region" ? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-lg px-4 py-2 transition-colors text-sm font-medium hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-slate-100 hover:bg-gradient-to-r" 
+                  : "hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-slate-500 hover:bg-gradient-to-r"
                 }`}
               >
                 Region Rankings

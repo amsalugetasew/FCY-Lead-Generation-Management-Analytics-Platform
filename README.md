@@ -53,7 +53,7 @@ Create a database named `fcy_leads` or customize the database connection string 
    ```
 5. Run the server (this will automatically verify tables, create schemas, and seed 1,500 mock transaction records for development on first startup):
    ```bash
-   python -m uvicorn main:app --port 8000 --reload
+   python -m uvicorn main:app --port 8000 --reload or .\backend\venv\Scripts\python.exe -m uvicorn backend.main:app --port 8000 --reload
    ```
    *The Swagger API documentation will be available at [http://localhost:8000/docs](http://localhost:8000/docs).*
 

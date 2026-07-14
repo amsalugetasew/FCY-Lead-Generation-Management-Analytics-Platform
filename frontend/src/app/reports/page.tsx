@@ -72,7 +72,7 @@ export default function ReportsExport() {
     if (!token) return;
     const fetchGeo = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/auth/hierarchy", {
+        const res = await fetch("/api/auth/hierarchy", {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
@@ -132,7 +132,7 @@ export default function ReportsExport() {
       if (selectedDistrict) params.append("district_id", selectedDistrict);
       if (selectedBranch) params.append("branch_id", selectedBranch);
 
-      const url = `http://localhost:8000/api/reports/download?${params.toString()}`;
+      const url = `/api/reports/download?${params.toString()}`;
       
       // Trigger download using standard iframe or fetch anchor
       const response = await fetch(url, {

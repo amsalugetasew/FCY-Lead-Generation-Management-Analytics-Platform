@@ -2,7 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, Lock, User, AlertCircle } from "lucide-react";
+import { Lock, User, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import Image from "next/image";
+import iconImage from "../../assets/CBE_Logo.png";
+
+const DEMO_USERS = [
+  { username: "headoffice", label: "Head Office Director", level: "Head Office" },
+  { username: "region",     label: "Regional Director",   level: "Region" },
+  { username: "district",   label: "District Manager",    level: "District" },
+  { username: "branch",     label: "Branch Officer",      level: "Branch" },
+  { username: "admin",      label: "System Admin",        level: "Admin" },
+];
 
 export default function Login() {
   const router = useRouter();
@@ -10,60 +20,85 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showDemoUsers, setShowDemoUsers] = useState(false);
 
   useEffect(() => {
-    // If token exists, direct immediately to dashboard
-    const token = localStorage.getItem("fcy_token");
-    if (token) {
-      router.push("/");
+    // Only clear tokens if no valid session exists
+    // Don't wipe a valid session just because the login page mounted
+    const existingToken = localStorage.getItem("fcy_token");
+    if (existingToken) {
+      // Already logged in — layout wrapper will redirect away
+      return;
     }
-  }, [router]);
+    localStorage.removeItem("fcy_token");
+    localStorage.removeItem("fcy_user");
+  }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    // Trim whitespace to avoid accidental spaces
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    console.debug("[Login] Attempting with username:", trimmedUsername, "password length:", trimmedPassword.length);
+
     try {
-      const response = await fetch("http://localhost:8000/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          username: username,
-          password: password,
+          username: trimmedUsername,
+          password: trimmedPassword,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Invalid username or password.");
+        // Read actual server error detail for better debugging
+        let detail = "Invalid username or password.";
+        try {
+          const errData = await response.json();
+          if (errData?.detail) detail = errData.detail;
+        } catch {}
+        throw new Error(detail);
       }
 
       const data = await response.json();
       localStorage.setItem("fcy_token", data.access_token);
       localStorage.setItem("fcy_user", JSON.stringify(data));
-      
+
       // Navigate to main dashboard root
       router.push("/");
     } catch (err: any) {
-      setError(err.message || "Connection failed. Please ensure the backend server is running.");
+      // Clear any partial stored data on failure
+      localStorage.removeItem("fcy_token");
+      localStorage.removeItem("fcy_user");
+      setError(err.message || "Connection failed. Please ensure the backend server is running on port 8000.");
     } finally {
       setLoading(false);
     }
   };
 
+  const fillDemoUser = (u: typeof DEMO_USERS[0]) => {
+    setUsername(u.username);
+    setPassword("password");
+    setError(null);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-8 shadow-xl shadow-slate-100 flex flex-col gap-8 animate-in fade-in zoom-in-95 duration-300">
-        
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-md p-8 shadow-xl shadow-slate-100 flex flex-col gap-6">
+
         {/* CBE Logo Brand Header */}
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="p-3 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
-            <Wallet size={28} />
+          <div className="bg-gradient-to-tr from-white-50 to-white-100 rounded-2xl text-white">
+            <Image src={iconImage} alt="FCY Lead Generation" className="w-40 h-24" />
           </div>
-          <div className="flex flex-col mt-1">
-            <h2 className="text-xl font-extrabold text-slate-800 tracking-tight">CBE FCY Lead Platform</h2>
+          <div className="flex flex-col mt-0">
             <p className="text-slate-400 text-xs mt-1">Sign in to access your retail mobilization dashboards</p>
           </div>
         </div>
@@ -78,10 +113,10 @@ export default function Login() {
               <input
                 required
                 type="text"
-                placeholder="e.g. headoffice, region, branch"
+                placeholder="e.g. headoffice"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-400"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#CFB53B] placeholder-slate-400"
               />
             </div>
           </div>
@@ -97,16 +132,16 @@ export default function Login() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-400"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#CFB53B] placeholder-slate-400"
               />
             </div>
           </div>
 
           {/* Error Alert */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-start gap-2.5 text-red-650">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-start gap-2.5">
               <AlertCircle size={16} className="flex-shrink-0 text-red-500 mt-0.5" />
-              <span className="text-[11px] leading-normal font-semibold">{error}</span>
+              <span className="text-[11px] leading-normal font-semibold text-red-700">{error}</span>
             </div>
           )}
 
@@ -114,22 +149,43 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 mt-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 cursor-pointer transition"
+            className="w-full py-3 mt-2 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-xl text-xs font-bold shadow-md cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {loading ? "Authenticating..." : "Sign In to CBE Account"}
           </button>
         </form>
 
-        {/* Info hints */}
-        <div className="text-[10px] text-slate-400 text-center leading-normal border-t border-slate-100 pt-4 font-medium">
-          <div>Development Demo Logins (Password: <code className="font-bold text-slate-500">password</code>):</div>
-          <div className="grid grid-cols-2 gap-2 mt-2 font-bold text-slate-500">
-            <span>headoffice (Admin)</span>
-            <span>region (Region)</span>
-            <span>district (District)</span>
-            <span>branch (Branch)</span>
-          </div>
+        {/* Demo Credentials Section */}
+        <div className="border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowDemoUsers(!showDemoUsers)}
+            className="flex items-center justify-between w-full text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors"
+          >
+            <span>Demo Accounts (all use password: <code className="font-mono font-bold text-slate-500">password</code>)</span>
+            {showDemoUsers ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+
+          {showDemoUsers && (
+            <div className="mt-3 grid grid-cols-1 gap-1.5">
+              {DEMO_USERS.map((u) => (
+                <button
+                  key={u.username}
+                  type="button"
+                  onClick={() => fillDemoUser(u)}
+                  className="flex items-center justify-between bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-lg px-3 py-2 transition-all group cursor-pointer"
+                >
+                  <div className="flex flex-col items-start">
+                    <span className="text-[11px] font-bold text-slate-700 group-hover:text-amber-700 font-mono">{u.username}</span>
+                    <span className="text-[10px] text-slate-400">{u.label}</span>
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400 group-hover:text-amber-600 uppercase tracking-wider">{u.level}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
       </div>
     </div>
   );

@@ -108,7 +108,7 @@ def upload_bole_atlantic_data(
         trigger_lead_generation(db)
         
         # Prepare response
-        res = schemas.UploadLogResponse.from_attributes(log)
+        res = schemas.UploadLogResponse.model_validate(log)
         res.uploader_name = current_user.full_name
         return res
         
@@ -218,7 +218,7 @@ def upload_walkin_data(
         # Trigger Lead Generation automatically
         trigger_lead_generation(db)
         
-        res = schemas.UploadLogResponse.from_attributes(log)
+        res = schemas.UploadLogResponse.model_validate(log)
         res.uploader_name = current_user.full_name
         return res
         
@@ -245,7 +245,7 @@ def get_upload_logs(
     logs = db.query(UploadLog).order_by(UploadLog.timestamp.desc()).all()
     results = []
     for log in logs:
-        res = schemas.UploadLogResponse.from_attributes(log)
+        res = schemas.UploadLogResponse.model_validate(log)
         res.uploader_name = log.uploaded_by.full_name if log.uploaded_by else "System"
         results.append(res)
     return results

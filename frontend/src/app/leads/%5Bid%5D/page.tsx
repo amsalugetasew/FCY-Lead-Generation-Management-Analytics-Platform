@@ -16,7 +16,9 @@ import {
   AlertTriangle,
   Building,
   CheckCircle2,
-  Clock
+  Clock,
+  Clipboard,
+  ClipboardList,
 } from "lucide-react";
 
 export default function LeadProfile() {
@@ -52,7 +54,7 @@ export default function LeadProfile() {
     setError(null);
     try {
       // 1. Fetch Lead details
-      const leadRes = await fetch(`http://localhost:8000/api/leads/${leadId}`, {
+      const leadRes = await fetch(`/api/leads/${leadId}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (leadRes.status === 404) {
@@ -66,7 +68,7 @@ export default function LeadProfile() {
       setNewStatus(leadData.status);
 
       // 2. Fetch Lead transactions
-      const txRes = await fetch(`http://localhost:8000/api/leads/${leadId}/transactions`, {
+      const txRes = await fetch(`/api/leads/${leadId}/transactions`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (txRes.ok) {
@@ -89,7 +91,7 @@ export default function LeadProfile() {
     if (!token || !lead) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/leads/${lead.id}/followup`, {
+      const res = await fetch(`/api/leads/${lead.id}/followup`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,

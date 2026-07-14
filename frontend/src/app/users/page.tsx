@@ -49,7 +49,7 @@ export default function UserManagement() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("http://localhost:8000/api/auth/users", {
+      const res = await fetch("/api/auth/users", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.status === 403) {
@@ -70,7 +70,7 @@ export default function UserManagement() {
   const fetchHierarchy = async () => {
     if (!token) return;
     try {
-      const res = await fetch("http://localhost:8000/api/auth/hierarchy", {
+      const res = await fetch("/api/auth/hierarchy", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -189,7 +189,7 @@ export default function UserManagement() {
           payload.password = regPassword;
         }
 
-        const res = await fetch(`http://localhost:8000/api/auth/users/${editingUser.id}`, {
+        const res = await fetch(`/api/auth/users/${editingUser.id}`, {
           method: "PUT",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -217,7 +217,7 @@ export default function UserManagement() {
           ...levelGeoMapping
         };
 
-        const res = await fetch("http://localhost:8000/api/auth/register", {
+        const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -248,7 +248,7 @@ export default function UserManagement() {
     if (!confirm(`Are you sure you want to delete user: ${name}?`)) return;
 
     try {
-      const res = await fetch(`http://localhost:8000/api/auth/users/${userId}`, {
+      const res = await fetch(`/api/auth/users/${userId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -530,7 +530,8 @@ export default function UserManagement() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-2.5 mt-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl font-bold shadow-md shadow-indigo-600/10 cursor-pointer transition"
+                className="w-full py-2.5 mt-2 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] hover:from-[#CFB53B] 
+              hover:to-[#8E288D] disabled:opacity-50 text-white rounded-xl font-bold shadow-md shadow-indigo-600/10 cursor-pointer transition"
               >
                 {submitting ? "Processing..." : editingUser ? "Update User Profile" : "Onboard Account User"}
               </button>

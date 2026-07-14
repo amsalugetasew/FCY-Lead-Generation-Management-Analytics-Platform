@@ -68,7 +68,7 @@ export default function Dashboard() {
     
     const fetchHierarchy = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/auth/hierarchy", {
+        const res = await fetch("/api/auth/hierarchy", {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
@@ -135,7 +135,7 @@ export default function Dashboard() {
       if (endDate) params.append("end_date", endDate);
 
       // 2. Fetch Aggregated Statistics Card
-      const statsRes = await fetch(`http://localhost:8000/api/analytics/stats?${params.toString()}`, {
+      const statsRes = await fetch(`/api/analytics/stats?${params.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (statsRes.ok) {
@@ -150,7 +150,7 @@ export default function Dashboard() {
       if (selectedDistrict) trendParams.append("district_id", selectedDistrict);
       if (selectedBranch) trendParams.append("branch_id", selectedBranch);
       
-      const trendsRes = await fetch(`http://localhost:8000/api/analytics/trends?${trendParams.toString()}`, {
+      const trendsRes = await fetch(`/api/analytics/trends?${trendParams.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (trendsRes.ok) {
@@ -191,13 +191,13 @@ export default function Dashboard() {
     <div className="flex flex-col gap-8">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 leading-tight">Executive Dashboard</h2>
-          <p className="text-slate-500 text-xs mt-1">Real-time foreign currency (FCY) mobilization summaries & lead conversion audits.</p>
+        <div className="flex flex-row gap-1">
+          <h2 className="text-2xl font-bold text-slate-800 leading-tight mr-3">Executive Dashboard</h2>
+          <p className="text-slate-500 text-xs mt-2">Real-time foreign currency (FCY) mobilization summaries & lead conversion audits.</p>
         </div>
         <button
           onClick={fetchDashboardData}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/10 transition duration-150 ease-in-out cursor-pointer self-start md:self-auto"
+          className="px-4 py-2 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-xl px-4 py-2 hover:from-[#CFB53B] hover:to-[#8E288D] transition-colors text-sm font-medium text-xs font-semibold shadow-md shadow-indigo-600/10 transition duration-150 ease-in-out cursor-pointer self-start md:self-auto"
         >
           Refresh Data
         </button>
@@ -206,7 +206,7 @@ export default function Dashboard() {
       {/* Multidimensional Filters Bar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col gap-6">
         <div className="flex items-center gap-2 text-slate-800 border-b border-slate-100 pb-3">
-          <Filter size={16} className="text-indigo-600" />
+          <Filter size={16} className="text-[#8E288D]" />
           <span className="text-xs font-bold uppercase tracking-wider">Multi-Dimensional Analytics Filter</span>
         </div>
         
@@ -218,8 +218,7 @@ export default function Dashboard() {
               disabled={user.level !== "Head Office"}
               value={selectedRegion}
               onChange={(e) => setSelectedRegion(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
-            >
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-60">
               <option value="">All Regions</option>
               {regions.map(r => (
                 <option key={r.id} value={r.id}>{r.name}</option>
@@ -326,7 +325,7 @@ export default function Dashboard() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
           <div className="flex justify-between items-start">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">FCY Volume Inflow</span>
-            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+            <div className="p-2 bg-indigo-50 text-[#8E288D] rounded-xl">
               <TrendingUp size={16} />
             </div>
           </div>
@@ -342,7 +341,7 @@ export default function Dashboard() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
           <div className="flex justify-between items-start">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Leads Generated</span>
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="p-2 bg-blue-50 text-[#8E288D] rounded-xl">
               <Users size={16} />
             </div>
           </div>
@@ -358,7 +357,7 @@ export default function Dashboard() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
           <div className="flex justify-between items-start">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Conversion Rate</span>
-            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+            <div className="p-2 bg-emerald-50 text-[#8E288D] rounded-xl">
               <Percent size={16} />
             </div>
           </div>
@@ -374,7 +373,7 @@ export default function Dashboard() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
           <div className="flex justify-between items-start">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">FCY Customers</span>
-            <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+            <div className="p-2 bg-amber-50 text-[#8E288D] rounded-xl">
               <UserCheck size={16} />
             </div>
           </div>
@@ -385,7 +384,7 @@ export default function Dashboard() {
             <div className="flex gap-2 text-[9px] text-slate-400 mt-0.5 font-semibold">
               <span>{stats ? stats.total_existing_customers : "0"} Accs</span>
               <span>•</span>
-              <span className="text-indigo-600">{stats ? stats.total_walk_ins : "0"} Walk-ins</span>
+              <span className="text-[#CFB53B]">{stats ? stats.total_walk_ins : "0"} Walk-ins</span>
             </div>
           </div>
         </div>
@@ -394,7 +393,7 @@ export default function Dashboard() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
           <div className="flex justify-between items-start">
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Acquisitions</span>
-            <div className="p-2 bg-purple-50 text-purple-600 rounded-xl">
+            <div className="p-2 bg-purple-50 text-[#8E288D] rounded-xl">
               <Briefcase size={16} />
             </div>
           </div>
@@ -423,14 +422,14 @@ export default function Dashboard() {
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <TrendingUp size={16} className="text-indigo-600" />
+              <TrendingUp size={16} className="text-[#8E288D]" />
               Trend Engine (Apache ECharts)
             </h3>
             <div className="flex bg-slate-100 border border-slate-200 rounded-xl p-0.5">
               <button
                 onClick={() => setTrendView("monthly")}
                 className={`px-3 py-1 text-[10px] font-bold rounded-lg cursor-pointer transition ${
-                  trendView === "monthly" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+                  trendView === "monthly" ? "bg-[#8E288D] text-white" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Monthly
@@ -438,7 +437,7 @@ export default function Dashboard() {
               <button
                 onClick={() => setTrendView("quarterly")}
                 className={`px-3 py-1 text-[10px] font-bold rounded-lg cursor-pointer transition ${
-                  trendView === "quarterly" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+                  trendView === "quarterly" ? "bg-[#8E288D] text-white" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Quarterly
@@ -446,7 +445,7 @@ export default function Dashboard() {
               <button
                 onClick={() => setTrendView("annual")}
                 className={`px-3 py-1 text-[10px] font-bold rounded-lg cursor-pointer transition ${
-                  trendView === "annual" ? "bg-indigo-600 text-white" : "text-slate-500 hover:text-slate-700"
+                  trendView === "annual" ? "bg-[#8E288D] text-white" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 Annual
