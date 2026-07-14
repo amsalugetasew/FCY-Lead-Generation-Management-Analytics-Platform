@@ -11,6 +11,7 @@ class Token(BaseModel):
     full_name: str
     position: str
     level: str
+    avatar_url: Optional[str] = None
     region_id: Optional[int] = None
     district_id: Optional[int] = None
     branch_id: Optional[int] = None
@@ -42,6 +43,7 @@ class UserResponse(BaseModel):
     full_name: str
     position: str
     level: str
+    avatar_url: Optional[str] = None
     region_id: Optional[int] = None
     district_id: Optional[int] = None
     branch_id: Optional[int] = None

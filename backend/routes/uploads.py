@@ -9,7 +9,7 @@ import io
 import datetime
 from typing import List
 
-router = APIRouter(prefix="/uploads", tags=["Manual Data Uploads"])
+router = APIRouter(prefix="/uploads", tags=["Manual Data Uploads"], redirect_slashes=False)
 
 @router.post("/bole-atlantic", response_model=schemas.UploadLogResponse)
 def upload_bole_atlantic_data(

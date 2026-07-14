@@ -2,26 +2,27 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, User, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Lock, Eye, EyeOff,  User, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import Image from "next/image";
 import iconImage from "../../assets/CBE_Logo.png";
 
-const DEMO_USERS = [
-  { username: "headoffice", label: "Head Office Director", level: "Head Office" },
-  { username: "region",     label: "Regional Director",   level: "Region" },
-  { username: "district",   label: "District Manager",    level: "District" },
-  { username: "branch",     label: "Branch Officer",      level: "Branch" },
-  { username: "admin",      label: "System Admin",        level: "Admin" },
-];
+type DemoUser = {
+  username: string;
+  full_name: string;
+  position: string;
+  level: string;
+};
 
 export default function Login() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [demoUsers, setDemoUsers] = useState<DemoUser[]>([]);
+  const [loadingDemoUsers, setLoadingDemoUsers] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDemoUsers, setShowDemoUsers] = useState(false);
-
+  const [showPassword, setShowPassword] = useState(false);
   useEffect(() => {
     // Only clear tokens if no valid session exists
     // Don't wipe a valid session just because the login page mounted
@@ -32,6 +33,26 @@ export default function Login() {
     }
     localStorage.removeItem("fcy_token");
     localStorage.removeItem("fcy_user");
+  }, []);
+
+  useEffect(() => {
+    const loadDemoUsers = async () => {
+      setLoadingDemoUsers(true);
+      try {
+        const res = await fetch("/api/auth/demo-users");
+        if (!res.ok) {
+          throw new Error("Unable to load demo user list.");
+        }
+        const data: DemoUser[] = await res.json();
+        setDemoUsers(data);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        setLoadingDemoUsers(false);
+      }
+    };
+
+    loadDemoUsers();
   }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -83,7 +104,7 @@ export default function Login() {
     }
   };
 
-  const fillDemoUser = (u: typeof DEMO_USERS[0]) => {
+  const fillDemoUser = (u: DemoUser) => {
     setUsername(u.username);
     setPassword("password");
     setError(null);
@@ -122,19 +143,27 @@ export default function Login() {
           </div>
 
           {/* Password */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Password</label>
-            <div className="relative">
-              <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                required
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#CFB53B] placeholder-slate-400"
-              />
-            </div>
+          <div className="relative w-full">
+            <Lock
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+
+            <input
+              required
+              type={showPassword ? "text" : "password"}
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-11 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#CFB53B]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-0 mt-1/2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showPassword ? "Hide password" : "Show password"}>
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
           {/* Error Alert */}
@@ -151,7 +180,7 @@ export default function Login() {
             disabled={loading}
             className="w-full py-3 mt-2 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-xl text-xs font-bold shadow-md cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {loading ? "Authenticating..." : "Sign In to CBE Account"}
+            {loading ? "Authenticating..." : "Sign In"}
           </button>
         </form>
 
@@ -162,31 +191,38 @@ export default function Login() {
             onClick={() => setShowDemoUsers(!showDemoUsers)}
             className="flex items-center justify-between w-full text-[10px] font-bold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors"
           >
-            <span>Demo Accounts (all use password: <code className="font-mono font-bold text-slate-500">password</code>)</span>
+            <span>Demo Accounts — click to fill credentials (password: <span className="font-mono text-amber-600">password</span>)</span>
             {showDemoUsers ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
 
           {showDemoUsers && (
             <div className="mt-3 grid grid-cols-1 gap-1.5">
-              {DEMO_USERS.map((u) => (
-                <button
-                  key={u.username}
-                  type="button"
-                  onClick={() => fillDemoUser(u)}
-                  className="flex items-center justify-between bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-lg px-3 py-2 transition-all group cursor-pointer"
-                >
-                  <div className="flex flex-col items-start">
-                    <span className="text-[11px] font-bold text-slate-700 group-hover:text-amber-700 font-mono">{u.username}</span>
-                    <span className="text-[10px] text-slate-400">{u.label}</span>
-                  </div>
-                  <span className="text-[9px] font-bold text-slate-400 group-hover:text-amber-600 uppercase tracking-wider">{u.level}</span>
-                </button>
-              ))}
+              {loadingDemoUsers ? (
+                <div className="text-[11px] text-slate-500">Loading demo users from database...</div>
+              ) : demoUsers.length > 0 ? (
+                demoUsers.map((u) => (
+                  <button
+                    key={u.username}
+                    type="button"
+                    onClick={() => fillDemoUser(u)}
+                    className="flex items-center justify-between bg-slate-50 hover:bg-amber-50 border border-slate-200 hover:border-amber-300 rounded-lg px-3 py-2 transition-all group cursor-pointer"
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-[11px] font-bold text-slate-700 group-hover:text-amber-700 font-mono">{u.username}</span>
+                      <span className="text-[10px] text-slate-400">{u.position}</span>
+                    </div>
+                    <span className="text-[9px] font-bold text-slate-400 group-hover:text-amber-600 uppercase tracking-wider">{u.level}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="text-[11px] text-slate-500">No demo users available from the database.</div>
+              )}
             </div>
           )}
         </div>
+        </div>
 
       </div>
-    </div>
+    // </div>
   );
 }

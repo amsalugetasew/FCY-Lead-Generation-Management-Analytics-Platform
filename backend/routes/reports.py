@@ -16,7 +16,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-router = APIRouter(prefix="/reports", tags=["Data Export & Reports"])
+router = APIRouter(prefix="/reports", tags=["Data Export & Reports"], redirect_slashes=False)
 
 @router.get("/download")
 def download_report(

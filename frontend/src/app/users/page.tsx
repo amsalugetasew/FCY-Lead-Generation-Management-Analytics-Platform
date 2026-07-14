@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { UserPlus, Users, Trash2, ShieldCheck, AlertCircle, CheckCircle2, Edit3, XCircle } from "lucide-react";
-
+import { UserPlus, Users, Trash2, Eye, EyeOff,  ShieldCheck, AlertCircle, CheckCircle2, Edit3, XCircle } from "lucide-react";
+// import { FaEye, FaEyeSlash } from "react-icons/fa";
 export default function UserManagement() {
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -34,6 +34,9 @@ export default function UserManagement() {
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
@@ -198,14 +201,34 @@ export default function UserManagement() {
           body: JSON.stringify(payload)
         });
 
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.detail || "Update failed.");
-        }
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || "Update failed.");
+          }
 
-        setFormSuccess(`User '${editingUser.username}' updated successfully!`);
-        cancelEditMode();
-        fetchUsers();
+          // Use the returned user object so we can update localStorage when
+          // the currently logged-in user edited their own profile.
+          const updatedUser = await res.json();
+
+          // If the edited user is the current session user, refresh localStorage
+          try {
+            const currentStr = localStorage.getItem("fcy_user");
+            if (currentStr) {
+              const currentLocal = JSON.parse(currentStr);
+              if (currentLocal && currentLocal.id === updatedUser.id) {
+                const merged = { ...currentLocal, ...updatedUser };
+                localStorage.setItem("fcy_user", JSON.stringify(merged));
+                // reload to propagate changes across UI (sidebar, role selector)
+                window.location.reload();
+              }
+            }
+          } catch (e) {
+            console.warn("Failed to sync localStorage after user update:", e);
+          }
+
+          setFormSuccess(`User '${editingUser.username}' updated successfully!`);
+          cancelEditMode();
+          fetchUsers();
       } else {
         // Add Mode Submission (POST)
         const payload = {
@@ -390,32 +413,53 @@ export default function UserManagement() {
               </div>
 
               {/* Password */}
-              <div className="flex flex-col gap-1.5">
+              <div className="relative flex flex-col gap-1.5">
                 <div className="flex justify-between">
                   <label className="text-[10px] text-slate-400 font-bold uppercase">Password</label>
                   {editingUser && <span className="text-[9px] text-slate-400 font-medium">(Leave blank to keep unchanged)</span>}
                 </div>
                 <input
                   required={!editingUser}
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-0 mt-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  aria-label={showPassword ? "Hide password" : "Show password"}>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+                    {/* <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="bsolute right-0 mt-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      {showPassword ? <EyeOff /> : <Eye />}
+                    </button> */}
               </div>
 
               {/* Confirm Password */}
-              <div className="flex flex-col gap-1.5">
+              <div className="relative flex flex-col gap-1.5">
                 <label className="text-[10px] text-slate-400 font-bold uppercase">Confirm Password</label>
                 <input
                   required={!editingUser && regPassword !== ""}
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={regConfirmPassword}
                   onChange={(e) => setRegConfirmPassword(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    className="absolute right-0 mt-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
               </div>
 
               {/* Full Name */}

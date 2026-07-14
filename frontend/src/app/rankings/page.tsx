@@ -5,7 +5,7 @@ import { Trophy, Award, Medal, AlertCircle, BarChart3, Users, Percent, ArrowUpRi
 
 export default function Rankings() {
   const [user, setUser] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [rankBy, setRankBy] = useState("branch"); // "branch", "district", "region"
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,11 +16,12 @@ export default function Rankings() {
     const jwtToken = localStorage.getItem("fcy_token");
     if (userStr && jwtToken) {
       setUser(JSON.parse(userStr));
-      setToken(jwtToken);
     }
+    setAuthReady(true);
   }, []);
 
   const fetchRankings = async () => {
+    const token = localStorage.getItem("fcy_token");
     if (!token) return;
     setLoading(true);
     setError(null);
@@ -48,10 +49,11 @@ export default function Rankings() {
   };
 
   useEffect(() => {
+    if (!authReady) return;
     fetchRankings();
-  }, [token, rankBy]);
+  }, [authReady, rankBy]);
 
-  if (!user) return null;
+  if (!authReady) return null;
 
   return (
     <div className="flex flex-col gap-8">

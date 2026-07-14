@@ -8,11 +8,14 @@ from backend.database import engine, Base, get_db
 from backend.models import User
 from backend.routes import auth, leads, analytics, uploads, reports
 from backend.seed_data import seed_database
+from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI(
     title="Retail Banking FCY Lead Generation & Management Platform",
     description="Automated system to extract, analyze, and manage foreign currency mobilization opportunities.",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=False
 )
 
 # CORS middleware config to allow frontend requests
@@ -56,11 +59,21 @@ def startup_db_initialization():
             seed_database()
             print("Development data seeded.")
         else:
+            try:
+                from backend.database import ensure_avatar_column
+                ensure_avatar_column()
+            except Exception as e:
+                print(f"Warning: avatar column validation failed: {e}")
             session.close()
             print("Database already contains data. Ready.")
     except Exception as e:
         print(f"Error during startup database creation/verification: {e}")
         print("Please check your MySQL database configuration and make sure it is running.")
+
+# Serve backend static files (avatars, etc.) from /static
+static_path = os.path.join(os.getcwd(), "backend", "static")
+os.makedirs(static_path, exist_ok=True)
+app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 @app.get("/api/health")
 def health_check():

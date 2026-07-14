@@ -16,8 +16,8 @@ import {
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(null);
-  
+  const [authReady, setAuthReady] = useState(false);
+
   // Geographic hierarchy and dropdown lists
   const [hierarchy, setHierarchy] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
@@ -46,7 +46,6 @@ export default function Dashboard() {
     if (userStr && jwtToken) {
       const u = JSON.parse(userStr);
       setUser(u);
-      setToken(jwtToken);
       
       // Auto lock geographical selections based on user scope
       if (u.level === "Region") {
@@ -60,10 +59,13 @@ export default function Dashboard() {
         setSelectedBranch(String(u.branch_id));
       }
     }
+    setAuthReady(true);
   }, []);
 
   // Fetch geographical tree hierarchy
   useEffect(() => {
+    if (!authReady) return;
+    const token = localStorage.getItem("fcy_token");
     if (!token) return;
     
     const fetchHierarchy = async () => {
@@ -82,7 +84,7 @@ export default function Dashboard() {
     };
     
     fetchHierarchy();
-  }, [token]);
+  }, [authReady]);
 
   // Handle cascading dropdown selectors
   useEffect(() => {
@@ -121,6 +123,7 @@ export default function Dashboard() {
 
   // Fetch Dashboard Stats & Trends
   const fetchDashboardData = async () => {
+    const token = localStorage.getItem("fcy_token");
     if (!token) return;
     setLoading(true);
     try {
@@ -166,9 +169,10 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    if (!authReady) return;
     fetchDashboardData();
   }, [
-    token, 
+    authReady,
     selectedRegion, 
     selectedDistrict, 
     selectedBranch, 
@@ -179,7 +183,7 @@ export default function Dashboard() {
     trendView
   ]);
 
-  if (!user) {
+  if (!authReady) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>

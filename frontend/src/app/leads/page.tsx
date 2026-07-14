@@ -4,8 +4,6 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { 
   Search, 
-  Filter, 
-  PlusCircle, 
   Sparkles,
   ArrowRight,
   ClipboardList,
@@ -14,24 +12,21 @@ import {
 
 export default function Leads() {
   const [user, setUser] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(null);
-  
-  // Lists and loading
+  const [authReady, setAuthReady] = useState(false);
+
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  // Search & Filter options
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [selectedPriority, setSelectedPriority] = useState("");
-  
-  // Manual trigger engine states
+
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState("");
 
-  // Follow-up modal state
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [newStatus, setNewStatus] = useState("");
   const [actionTaken, setActionTaken] = useState("");
@@ -43,13 +38,19 @@ export default function Leads() {
     const jwtToken = localStorage.getItem("fcy_token");
     if (userStr && jwtToken) {
       setUser(JSON.parse(userStr));
-      setToken(jwtToken);
     }
+    setAuthReady(true);
   }, []);
 
   const fetchLeads = async () => {
-    if (!token || typeof token !== "string") return;
+    const token = localStorage.getItem("fcy_token");
+    if (!token) {
+      setFetchError("No auth token found. Please log in again.");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setFetchError(null);
     try {
       const params = new URLSearchParams();
       if (search) params.append("search", search);
@@ -62,34 +63,34 @@ export default function Leads() {
         headers: { "Authorization": `Bearer ${token}` }
       });
 
-      if (res.status === 401) {
-        // Token is stale/invalid — clear it so ClientLayoutWrapper redirects to login
-        localStorage.removeItem("fcy_token");
-        localStorage.removeItem("fcy_user");
-        window.location.href = "/login";
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const errData = await res.json();
+          if (errData?.detail) detail += `: ${errData.detail}`;
+        } catch {}
+        setFetchError(`Failed to load leads — ${detail}`);
         return;
       }
 
-      if (res.ok) {
-        const data = await res.json();
-        setLeads(data);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        console.error("Leads fetch error:", res.status, errData);
-      }
+      const data = await res.json();
+      setLeads(data);
     } catch (err) {
-      console.error("Error fetching leads list:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setFetchError(`Network error: ${msg}`);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!authReady) return;
     fetchLeads();
-  }, [token, search, selectedType, selectedCategory, selectedStatus, selectedPriority]);
+  }, [authReady, search, selectedType, selectedCategory, selectedStatus, selectedPriority]);
 
   const handleGenerateLeads = async () => {
-    if (!token || typeof token !== "string") return;
+    const token = localStorage.getItem("fcy_token");
+    if (!token) return;
     setGenerating(true);
     setMessage("");
     try {
@@ -104,7 +105,7 @@ export default function Leads() {
       } else {
         setMessage("Error running lead generation engine.");
       }
-    } catch (err) {
+    } catch {
       setMessage("Connection error. Ensure backend is running.");
     } finally {
       setGenerating(false);
@@ -121,19 +122,13 @@ export default function Leads() {
 
   const submitFollowup = async (e: React.FormEvent) => {
     e.preventDefault();
+    const token = localStorage.getItem("fcy_token");
     if (!token || !selectedLead) return;
     try {
       const res = await fetch(`/api/leads/${selectedLead.id}/followup`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          action_taken: actionTaken,
-          notes: followupNotes,
-          status: newStatus
-        })
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action_taken: actionTaken, notes: followupNotes, status: newStatus })
       });
       if (res.ok) {
         setModalOpen(false);
@@ -141,7 +136,7 @@ export default function Leads() {
       } else {
         alert("Failed to submit follow-up action.");
       }
-    } catch (err) {
+    } catch {
       alert("Error submitting follow-up.");
     }
   };
@@ -152,7 +147,7 @@ export default function Leads() {
       case "In Progress": return "bg-amber-50 text-amber-600 border-amber-200";
       case "Contacted": return "bg-purple-50 text-purple-600 border-purple-200";
       case "Converted": return "bg-emerald-50 text-emerald-600 border-emerald-200";
-      case "Lost": return "bg-red-50 text-red-650 border-red-200";
+      case "Lost": return "bg-red-50 text-red-600 border-red-200";
       default: return "bg-slate-50 text-slate-600 border-slate-200";
     }
   };
@@ -165,7 +160,7 @@ export default function Leads() {
     }
   };
 
-  if (!user) return null;
+  if (!authReady) return null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -175,16 +170,13 @@ export default function Leads() {
           <h2 className="text-2xl font-bold text-slate-800 leading-tight mr-3">Lead Management Portal</h2>
           <p className="text-slate-500 text-xs mt-1">Track and manage foreign exchange leads from assignment to conversions.</p>
         </div>
-        
-        {/* Head Office Lead Gen Button */}
-        {user.level === "Head Office" && (
+
+        {user?.level === "Head Office" && (
           <div className="flex flex-col items-end gap-2">
             <button
               onClick={handleGenerateLeads}
               disabled={generating}
-              className="px-4 py-2.5 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] px-4 py-2 transition-colors text-sm font-medium hover:from-[#CFB53B] 
-              hover:to-[#8E288D] hover:text-slate-100 hover:bg-gradient-to-r
-               disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-md shadow-purple-600/10 flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] transition-colors text-sm font-medium hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-slate-100 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-md shadow-purple-600/10 flex items-center gap-2 cursor-pointer"
             >
               <Sparkles size={14} className={generating ? "animate-spin" : ""} />
               {generating ? "Generating Leads..." : "Trigger Monthly Lead Run"}
@@ -196,7 +188,6 @@ export default function Leads() {
 
       {/* Filter and Search Bar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col md:flex-row gap-4 items-center">
-        {/* Search */}
         <div className="relative flex-1 w-full">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -208,26 +199,17 @@ export default function Leads() {
           />
         </div>
 
-        {/* Filters */}
         <div className="grid grid-cols-2 md:flex gap-3 w-full md:w-auto">
-          {/* Lead Type */}
-          <select
-            value={selectedType}
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
+          <select value={selectedType} onChange={(e) => setSelectedType(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
             <option value="">All Lead Types</option>
             <option value="Receiver">Receiver Leads</option>
             <option value="Sender">Sender Leads</option>
             <option value="FCY Exchange">FCY Exchange</option>
           </select>
 
-          {/* Category */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
+          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
             <option value="">All Categories</option>
             <option value="High Value Customer">High Value Customer</option>
             <option value="Regular Sender">Regular Sender</option>
@@ -236,12 +218,8 @@ export default function Leads() {
             <option value="Sender Engagement">Sender Engagement</option>
           </select>
 
-          {/* Status */}
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
+          <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
             <option value="">All Statuses</option>
             <option value="Assigned">Assigned</option>
             <option value="In Progress">In Progress</option>
@@ -250,12 +228,8 @@ export default function Leads() {
             <option value="Lost">Lost</option>
           </select>
 
-          {/* Priority */}
-          <select
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
-            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-          >
+          <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)}
+            className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
             <option value="">All Priorities</option>
             <option value="High">High</option>
             <option value="Medium">Medium</option>
@@ -270,9 +244,20 @@ export default function Leads() {
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-500"></div>
           </div>
+        ) : fetchError ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="bg-red-50 border border-red-200 rounded-xl px-6 py-4 max-w-lg w-full text-center">
+              <p className="text-sm font-bold text-red-600 mb-1">Error loading leads</p>
+              <p className="text-xs text-red-500 font-mono break-all">{fetchError}</p>
+            </div>
+            <button onClick={fetchLeads}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl cursor-pointer">
+              Retry
+            </button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-slate-655">
+            <table className="w-full text-left text-slate-600">
               <thead>
                 <tr className="border-b border-slate-100 text-[10px] uppercase font-bold tracking-wider text-slate-400">
                   <th className="pb-4">Customer Name</th>
@@ -295,12 +280,8 @@ export default function Leads() {
                         <span className="text-[9px] text-slate-400 font-semibold mt-0.5">ID: #{lead.id}</span>
                       </Link>
                     </td>
-                    <td className="py-4">
-                      <span className="text-slate-500 font-medium">{lead.lead_type}</span>
-                    </td>
-                    <td className="py-4">
-                      <span className="text-slate-500 font-medium">{lead.category}</span>
-                    </td>
+                    <td className="py-4"><span className="text-slate-500 font-medium">{lead.lead_type}</span></td>
+                    <td className="py-4"><span className="text-slate-500 font-medium">{lead.category}</span></td>
                     <td className="py-4">
                       <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-bold border ${getPriorityColor(lead.priority)}`}>
                         {lead.priority}
@@ -309,12 +290,8 @@ export default function Leads() {
                     <td className="py-4 text-right font-bold text-slate-800">
                       ${lead.usd_volume.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                     </td>
-                    <td className="py-4 text-center font-semibold text-slate-500">
-                      {lead.frequency}
-                    </td>
-                    <td className="py-4 text-slate-550 truncate max-w-[120px]" title={lead.branch_name}>
-                      {lead.branch_name}
-                    </td>
+                    <td className="py-4 text-center font-semibold text-slate-500">{lead.frequency}</td>
+                    <td className="py-4 text-slate-500 truncate max-w-[120px]" title={lead.branch_name}>{lead.branch_name}</td>
                     <td className="py-4">
                       <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-bold border ${getStatusColor(lead.status)}`}>
                         {lead.status}
@@ -322,20 +299,14 @@ export default function Leads() {
                     </td>
                     <td className="py-4">
                       <div className="flex items-center justify-center gap-2">
-                        {/* Quick log follow-up */}
-                        <button
-                          onClick={() => openFollowupModal(lead)}
+                        <button onClick={() => openFollowupModal(lead)}
                           className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition cursor-pointer"
-                          title="Log Follow-up Action"
-                        >
+                          title="Log Follow-up Action">
                           <Edit2 size={13} />
                         </button>
-                        {/* View full profile link */}
-                        <Link
-                          href={`/leads/${lead.id}`}
+                        <Link href={`/leads/${lead.id}`}
                           className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition flex items-center justify-center"
-                          title="View Profile Details"
-                        >
+                          title="View Profile Details">
                           <ArrowRight size={13} />
                         </Link>
                       </div>
@@ -355,7 +326,7 @@ export default function Leads() {
         )}
       </div>
 
-      {/* Follow-up Action Dialog Modal */}
+      {/* Follow-up Modal */}
       {modalOpen && selectedLead && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -364,27 +335,20 @@ export default function Leads() {
                 <ClipboardList size={16} />
                 <h3 className="font-bold text-sm text-slate-800">Log Follow-up Action</h3>
               </div>
-              <button 
-                onClick={() => setModalOpen(false)} 
-                className="text-slate-400 hover:text-slate-650 text-xs font-semibold cursor-pointer"
-              >
+              <button onClick={() => setModalOpen(false)} className="text-slate-400 hover:text-slate-600 text-xs font-semibold cursor-pointer">
                 Close
               </button>
             </div>
-            
+
             <form onSubmit={submitFollowup} className="p-6 flex flex-col gap-5">
               <div className="text-xs text-slate-500">
-                Registering follow-up activity for client: <b className="text-slate-800">{selectedLead.customer_name}</b> (Lead #{selectedLead.id})
+                Registering follow-up for: <b className="text-slate-800">{selectedLead.customer_name}</b> (Lead #{selectedLead.id})
               </div>
 
-              {/* Action Type Selector */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Action Taken</label>
-                <select
-                  value={actionTaken}
-                  onChange={(e) => setActionTaken(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
+                <select value={actionTaken} onChange={(e) => setActionTaken(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
                   <option value="Call">Phone Call</option>
                   <option value="Email">Email Outbox</option>
                   <option value="Branch Visit">In-Branch Visit</option>
@@ -393,14 +357,10 @@ export default function Leads() {
                 </select>
               </div>
 
-              {/* Status Update Selector */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Update Lead Status</label>
-                <select
-                  value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                >
+                <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500">
                   <option value="Assigned">Assigned</option>
                   <option value="In Progress">In Progress</option>
                   <option value="Contacted">Contacted</option>
@@ -409,32 +369,22 @@ export default function Leads() {
                 </select>
               </div>
 
-              {/* Notes TextArea */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Activity Notes & Remarks</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={followupNotes}
-                  placeholder="Record what was discussed, what banking options they were interested in (e.g. diaspora account, priority banking, loans), and next schedules..."
+                <textarea required rows={4} value={followupNotes}
+                  placeholder="Record what was discussed, next steps, products of interest..."
                   onChange={(e) => setFollowupNotes(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 placeholder-slate-400 resize-none"
                 />
               </div>
 
-              {/* Submit Buttons */}
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
-                >
+                <button type="button" onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 rounded-xl text-xs font-semibold cursor-pointer">
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/10 cursor-pointer"
-                >
+                <button type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/10 cursor-pointer">
                   Save Log Entry
                 </button>
               </div>

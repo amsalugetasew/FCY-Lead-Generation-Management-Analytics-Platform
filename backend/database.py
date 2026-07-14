@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import pymysql
@@ -55,6 +55,18 @@ engine = create_engine(
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+def ensure_avatar_column():
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SHOW COLUMNS FROM users LIKE 'avatar_url'"))
+            if result.first() is None:
+                conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(255) NULL"))
+                print("Added missing users.avatar_url column.")
+    except Exception as e:
+        # If not MySQL or users table missing, ignore; schema creation will handle it later.
+        print(f"Avatar column check skipped or failed: {e}")
+
 
 def get_db():
     db = SessionLocal()

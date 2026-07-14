@@ -29,16 +29,19 @@ export default function Sidebar() {
     const userStr = localStorage.getItem("fcy_user");
     if (userStr) {
       try {
-        setUser(JSON.parse(userStr));
+        const parsed = JSON.parse(userStr);
+        setUser(parsed);
+        if (parsed?.avatar_url) {
+          setAvatar(parsed.avatar_url);
+          return;
+        }
+        const savedAvatar = localStorage.getItem(`fcy_user_avatar_${parsed.username}`) || localStorage.getItem("fcy_user_avatar");
+        if (savedAvatar) {
+          setAvatar(savedAvatar);
+        }
       } catch (e) {
         setUser(null);
       }
-    }
-
-    // Read avatar from localStorage
-    const savedAvatar = localStorage.getItem("fcy_user_avatar");
-    if (savedAvatar) {
-      setAvatar(savedAvatar);
     }
   }, []);
 

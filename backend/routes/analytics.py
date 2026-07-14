@@ -6,7 +6,7 @@ from backend import crud, schemas, auth
 from typing import List, Optional
 from datetime import datetime
 
-router = APIRouter(prefix="/analytics", tags=["Dashboard & Trends Analytics"])
+router = APIRouter(prefix="/analytics", tags=["Dashboard & Trends Analytics"], redirect_slashes=False)
 
 @router.get("/stats", response_model=schemas.DashboardStats)
 def get_dashboard_statistics(

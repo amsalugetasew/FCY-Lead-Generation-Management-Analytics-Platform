@@ -51,10 +51,20 @@ export default function RoleSelector() {
       handleRoleSwitch("headoffice");
     }
 
-    // Load saved avatar if any
-    const savedAvatar = localStorage.getItem("fcy_user_avatar");
-    if (savedAvatar) {
-      setAvatar(savedAvatar);
+    // Load saved avatar for this user if any (store per-user to avoid overwriting)
+    try {
+      const parsed = userStr ? JSON.parse(userStr) : null;
+      const username = parsed?.username || "headoffice";
+      // Prefer avatar_url present on user object (from backend)
+      if (parsed?.avatar_url) {
+        setAvatar(parsed.avatar_url);
+      } else {
+        const savedAvatar = localStorage.getItem(`fcy_user_avatar_${username}`);
+        if (savedAvatar) setAvatar(savedAvatar);
+      }
+    } catch (e) {
+      // fallback: remove any corrupted keys
+      console.warn("Failed to load per-user avatar:", e);
     }
   }, []);
 
@@ -94,6 +104,9 @@ export default function RoleSelector() {
       setDropdownOpen(false);
       
       // Trigger a page refresh to update all components with new token/RBAC limits
+      // Load avatar for the switched-to user
+      const saved = localStorage.getItem(`fcy_user_avatar_${data.username}`);
+      setAvatar(saved || null);
       window.location.reload();
     } catch (err) {
       console.error("Authentication switch failed:", err);
@@ -106,13 +119,55 @@ export default function RoleSelector() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setAvatar(base64String);
-        localStorage.setItem("fcy_user_avatar", base64String);
-      };
-      reader.readAsDataURL(file);
+
+      // Upload file to backend via multipart form data
+      (async () => {
+        try {
+          const form = new FormData();
+          form.append("file", file);
+          const userId = activeUser?.id;
+          const token = localStorage.getItem("fcy_token");
+          if (!userId || !token) throw new Error("No authenticated user.");
+
+          const res = await fetch(`/api/auth/users/${userId}/avatar`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: form,
+          });
+
+          if (!res.ok) {
+            throw new Error("Failed to upload avatar.");
+          }
+
+          const updated = await res.json();
+          // The backend returns avatar_url (e.g. /static/avatars/..)
+          const url = updated.avatar_url || null;
+          setAvatar(url);
+
+          // Persist per-user avatar URL in localStorage for quick access
+          const username = updated.username || activeUser.username;
+          if (url) {
+            localStorage.setItem(`fcy_user_avatar_${username}`, url);
+          }
+
+          // Also update stored fcy_user payload if present
+          try {
+            const cur = localStorage.getItem("fcy_user");
+            if (cur) {
+              const obj = JSON.parse(cur);
+              obj.avatar_url = url;
+              localStorage.setItem("fcy_user", JSON.stringify(obj));
+            }
+          } catch (err) {
+            console.warn("Failed to update fcy_user in localStorage:", err);
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Avatar upload failed. See console for details.");
+        }
+      })();
     }
   };
 

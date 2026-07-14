@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, CheckCircle2, AlertCircle, ShieldAlert, User, Briefcase } from "lucide-react";
+import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ShieldAlert, User, Briefcase } from "lucide-react";
 
 export default function ChangePassword() {
   const [token, setToken] = useState<string | null>(null);
@@ -19,6 +19,10 @@ export default function ChangePassword() {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const jwtToken = localStorage.getItem("fcy_token");
@@ -188,39 +192,60 @@ export default function ChangePassword() {
           </div> */}
 
           {/* Old Password */}
-          <div className="flex flex-col gap-1.5">
+          <div className="relative flex flex-col gap-1.5">
             <label className="text-[10px] text-slate-600 font-bold uppercase">Current Password</label>
             <input
-              type="password"
+              type={showCurrentPassword ? "text" : "password"}
               placeholder="••••••••"
               value={oldPassword}
               onChange={(e) => setOldPassword(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
+            <button
+              type="button"
+              onClick={() => setShowCurrentPassword((prev) => !prev)}
+              className="absolute right-0 mt-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showCurrentPassword ? "Hide password" : "Show password"}>
+              {showCurrentPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
           {/* New Password */}
-          <div className="flex flex-col gap-1.5">
+          <div className="relative flex flex-col gap-1.5">
             <label className="text-[10px] text-slate-600 font-bold uppercase">New Password</label>
             <input
-              type="password"
+              type={showNewPassword? "text":"password"}
               placeholder="••••••••"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword((prev) => !prev)}
+              className="absolute right-0 mt-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showNewPassword ? "Hide password" : "Show password"}>
+              {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
           {/* Confirm New Password */}
-          <div className="flex flex-col gap-1.5">
+          <div className="relative flex flex-col gap-1.5">
             <label className="text-[10px] text-slate-600 font-bold uppercase">Confirm New Password</label>
             <input
-              type="password"
+              type={showConfirmPassword? "text":"password"}
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              className="absolute right-0 mt-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}>
+              {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
 
           {success && (

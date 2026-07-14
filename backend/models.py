@@ -41,6 +41,7 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     position = Column(String(100), nullable=False) # e.g. "Regional Retail Director"
     level = Column(String(50), nullable=False) # "Head Office", "Region", "District", "Branch"
+    avatar_url = Column(String(255), nullable=True)
     
     region_id = Column(Integer, ForeignKey("regions.id"), nullable=True)
     district_id = Column(Integer, ForeignKey("districts.id"), nullable=True)

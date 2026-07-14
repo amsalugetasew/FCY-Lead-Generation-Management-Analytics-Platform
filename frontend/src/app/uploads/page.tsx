@@ -5,10 +5,9 @@ import { UploadCloud, FileSpreadsheet, AlertTriangle, AlertCircle, FileText, Che
 
 export default function ManualUploads() {
   const [user, setUser] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [uploadType, setUploadType] = useState("bole-atlantic"); // "bole-atlantic" or "walk-in"
+  const [authReady, setAuthReady] = useState(false);
+  const [uploadType, setUploadType] = useState("bole-atlantic");
   
-  // Files and logging
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -21,11 +20,12 @@ export default function ManualUploads() {
     const jwtToken = localStorage.getItem("fcy_token");
     if (userStr && jwtToken) {
       setUser(JSON.parse(userStr));
-      setToken(jwtToken);
     }
+    setAuthReady(true);
   }, []);
 
   const fetchUploadHistory = async () => {
+    const token = localStorage.getItem("fcy_token");
     if (!token) return;
     try {
       const res = await fetch("/api/uploads/logs", {
@@ -41,8 +41,9 @@ export default function ManualUploads() {
   };
 
   useEffect(() => {
+    if (!authReady) return;
     fetchUploadHistory();
-  }, [token]);
+  }, [authReady]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -63,6 +64,7 @@ export default function ManualUploads() {
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const token = localStorage.getItem("fcy_token");
     if (!file || !token) return;
     
     setUploading(true);
@@ -99,7 +101,7 @@ export default function ManualUploads() {
     }
   };
 
-  if (!user) return null;
+  if (!authReady) return null;
 
   const hasAccess = user.level === "Head Office" || user.level === "Region";
 

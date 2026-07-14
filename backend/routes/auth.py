@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
+import os, time
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models import User
 from backend import crud, schemas, auth
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"], redirect_slashes=False)
 
 @router.post("/login", response_model=schemas.Token)
 def login_for_access_token(
@@ -29,6 +30,7 @@ def login_for_access_token(
         "full_name": user.full_name,
         "position": user.position,
         "level": user.level,
+        "avatar_url": user.avatar_url,
         "region_id": user.region_id,
         "district_id": user.district_id,
         "branch_id": user.branch_id
@@ -52,6 +54,14 @@ def register_user(
 @router.get("/me", response_model=schemas.UserResponse)
 def read_users_me(current_user: User = Depends(auth.get_current_user)):
     return current_user
+
+@router.get("/demo-users", response_model=list[schemas.UserResponse])
+def get_demo_users(db: Session = Depends(get_db)):
+    """
+    Public demo user metadata for the login page.
+    This returns usernames and non-sensitive profile fields only.
+    """
+    return db.query(User).order_by(User.level.desc(), User.username).all()
 
 @router.get("/hierarchy", response_model=list[schemas.RegionResponse])
 def get_geographic_hierarchy(
@@ -158,6 +168,51 @@ def update_system_user(
     if user_in.password:
         db_user.hashed_password = auth.get_password_hash(user_in.password)
 
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+@router.post("/users/{user_id}/avatar", response_model=schemas.UserResponse)
+def upload_user_avatar(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """
+    Uploads a user avatar image, saves it to backend static folder and stores URL in DB.
+    Only the user themselves or Admin can update the avatar.
+    """
+    if current_user.id != user_id and current_user.level != "Admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied.")
+
+    db_user = db.query(User).filter(User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
+
+    # Prepare storage directory: backend/static/avatars
+    base_dir = os.getcwd()
+    static_dir = os.path.join(base_dir, "backend", "static", "avatars")
+    os.makedirs(static_dir, exist_ok=True)
+
+    # Build filename
+    _, ext = os.path.splitext(file.filename)
+    safe_name = f"{db_user.username}_{int(time.time())}{ext}"
+    dest_path = os.path.join(static_dir, safe_name)
+
+    # Write file to disk
+    try:
+        with open(dest_path, "wb") as out_file:
+            contents = file.file.read()
+            out_file.write(contents)
+    finally:
+        file.file.close()
+
+    # Set avatar URL (served from /static/avatars/...)
+    base_url = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000")
+    avatar_url = f"{base_url}/static/avatars/{safe_name}"
+    db_user.avatar_url = avatar_url
     db.commit()
     db.refresh(db_user)
     return db_user

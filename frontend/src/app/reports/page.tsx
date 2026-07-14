@@ -31,7 +31,7 @@ const REPORTS_LIST: ReportMeta[] = [
 
 export default function ReportsExport() {
   const [user, setUser] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   // Geographic selectors
   const [hierarchy, setHierarchy] = useState<any[]>([]);
@@ -51,9 +51,6 @@ export default function ReportsExport() {
     if (userStr && jwtToken) {
       const u = JSON.parse(userStr);
       setUser(u);
-      setToken(jwtToken);
-
-      // Auto-lock geographical filters
       if (u.level === "Region") {
         setSelectedRegion(String(u.region_id));
       } else if (u.level === "District") {
@@ -65,10 +62,13 @@ export default function ReportsExport() {
         setSelectedBranch(String(u.branch_id));
       }
     }
+    setAuthReady(true);
   }, []);
 
   // Fetch geographic lists
   useEffect(() => {
+    if (!authReady) return;
+    const token = localStorage.getItem("fcy_token");
     if (!token) return;
     const fetchGeo = async () => {
       try {
@@ -85,7 +85,7 @@ export default function ReportsExport() {
       }
     };
     fetchGeo();
-  }, [token]);
+  }, [authReady]);
 
   // Cascade selectors
   useEffect(() => {
@@ -120,6 +120,7 @@ export default function ReportsExport() {
   }, [selectedDistrict, districts]);
 
   const handleDownload = async (reportId: string, format: string) => {
+    const token = localStorage.getItem("fcy_token");
     if (!token) return;
     const downloadKey = `${reportId}-${format}`;
     setDownloading(downloadKey);
@@ -164,7 +165,7 @@ export default function ReportsExport() {
     }
   };
 
-  if (!user) return null;
+  if (!authReady) return null;
 
   return (
     <div className="flex flex-col gap-8">

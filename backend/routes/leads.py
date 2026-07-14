@@ -6,9 +6,9 @@ from backend import crud, schemas, auth
 from backend.lead_generator import trigger_lead_generation
 from typing import List, Optional
 
-router = APIRouter(prefix="/leads", tags=["Lead Management"])
+router = APIRouter(prefix="/leads", tags=["Lead Management"], redirect_slashes=False)
 
-@router.get("/", response_model=List[schemas.LeadResponse])
+@router.get("", response_model=List[schemas.LeadResponse])
 def read_leads(
     region_id: Optional[int] = None,
     district_id: Optional[int] = None,
