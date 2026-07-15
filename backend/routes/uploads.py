@@ -1,15 +1,72 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import User, Customer, Transaction, Branch, UploadLog
+from backend.models import User, Customer, Transaction, Branch, UploadLog, District, Region
 from backend import schemas, auth
 from backend.lead_generator import trigger_lead_generation
 import pandas as pd
+from pandas.errors import ParserError
 import io
 import datetime
 from typing import List
+import os
 
 router = APIRouter(prefix="/uploads", tags=["Manual Data Uploads"], redirect_slashes=False)
+
+
+def read_uploaded_file(file: UploadFile) -> pd.DataFrame:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file was selected. Please choose a CSV or Excel file to upload.")
+
+    name = file.filename.lower()
+    if name.endswith(".csv"):
+        content = file.file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="The uploaded file is empty. Please choose a file with data.")
+
+        for encoding in ("utf-8-sig", "utf-8", "latin-1"):
+            try:
+                text = content.decode(encoding)
+                return pd.read_csv(io.StringIO(text), keep_default_na=False)
+            except UnicodeDecodeError:
+                continue
+            except ParserError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="The CSV file could not be parsed. Please make sure the first row contains column names and the file is a valid comma-separated file."
+                ) from exc
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Unable to read the CSV file: {exc}") from exc
+
+        raise HTTPException(status_code=400, detail="The file could not be read as UTF-8. Please save it as UTF-8 and try again.")
+
+    if name.endswith((".xlsx", ".xls")):
+        content = file.file.read()
+        if not content:
+            raise HTTPException(status_code=400, detail="The uploaded file is empty. Please choose a file with data.")
+
+        try:
+            import openpyxl
+            return pd.read_excel(io.BytesIO(content), keep_default_na=False)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Unable to read the Excel file: {exc}") from exc
+
+    raise HTTPException(status_code=400, detail="Only CSV and Excel files are supported. Please upload a .csv, .xlsx, or .xls file.")
+
+
+def format_upload_error(exc: Exception) -> str:
+    if isinstance(exc, HTTPException):
+        return str(exc.detail)
+
+    message = str(exc).strip() or exc.__class__.__name__
+    if isinstance(exc, ParserError) or "No columns to parse" in message:
+        return "The CSV file could not be parsed. Please make sure the first row contains column names and the file is a valid comma-separated file."
+    if isinstance(exc, UnicodeDecodeError):
+        return "The file could not be read as text. Please save it as UTF-8 and try again."
+    if isinstance(exc, ValueError):
+        return f"Invalid data in the file: {message}"
+    return f"Upload failed: {message}"
+
 
 @router.post("/bole-atlantic", response_model=schemas.UploadLogResponse)
 def upload_bole_atlantic_data(
@@ -20,24 +77,21 @@ def upload_bole_atlantic_data(
     """
     Uploads a CSV of Bole Atlantic transactions. Auto-registers customers and maps transactions.
     """
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported.")
-        
     try:
-        content = file.file.read()
-        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+        df = read_uploaded_file(file)
         
         # Required columns check
         required_cols = ["reference_number", "sender_name", "receiver_name", "amount", "currency", "branch_code"]
-        for col in required_cols:
-            if col not in df.columns:
-                raise HTTPException(status_code=400, detail=f"Missing required column: {col}")
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            missing_text = ", ".join(missing_cols)
+            raise HTTPException(status_code=400, detail=f"Missing required columns: {missing_text}")
                 
         records_count = 0
         
         # Get branches dictionary
         branches = {b.code: b.id for b in db.query(Branch).all()}
-        default_branch_id = list(branches.values())[0] if branches else 1
+        default_branch_id = ensure_upload_branch(db, "CBE_UPLOAD_DEFAULT")
         
         for _, row in df.iterrows():
             ref = str(row["reference_number"])
@@ -112,20 +166,23 @@ def upload_bole_atlantic_data(
         res.uploader_name = current_user.full_name
         return res
         
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
-        # Log failed upload
+        message = format_upload_error(e)
+        print(f"Upload failed for bole-atlantic: {e}")
         log = UploadLog(
             file_name=file.filename,
             upload_type="Bole Atlantic",
             uploaded_by_id=current_user.id,
             timestamp=datetime.datetime.utcnow(),
             records_processed=0,
-            status=f"Failed: {str(e)[:100]}"
+            status=f"Failed: {message[:100]}"
         )
         db.add(log)
         db.commit()
-        raise HTTPException(status_code=500, detail=f"Error parsing file: {str(e)}")
+        raise HTTPException(status_code=400, detail=message)
 
 @router.post("/walk-in", response_model=schemas.UploadLogResponse)
 def upload_walkin_data(
@@ -136,22 +193,19 @@ def upload_walkin_data(
     """
     Uploads a CSV of walk-in/non-account customer counter exchanges. Auto-registers customers as non-account holders.
     """
-    if not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV files are supported.")
-        
     try:
-        content = file.file.read()
-        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+        df = read_uploaded_file(file)
         
         # Required columns check
         required_cols = ["reference_number", "customer_name", "amount", "currency", "branch_code"]
-        for col in required_cols:
-            if col not in df.columns:
-                raise HTTPException(status_code=400, detail=f"Missing required column: {col}")
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            missing_text = ", ".join(missing_cols)
+            raise HTTPException(status_code=400, detail=f"Missing required columns: {missing_text}")
                 
         records_count = 0
         branches = {b.code: b.id for b in db.query(Branch).all()}
-        default_branch_id = list(branches.values())[0] if branches else 1
+        default_branch_id = ensure_upload_branch(db, "CBE_UPLOAD_DEFAULT")
         
         for _, row in df.iterrows():
             ref = str(row["reference_number"])
@@ -222,20 +276,23 @@ def upload_walkin_data(
         res.uploader_name = current_user.full_name
         return res
         
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
-        # Log failed upload
+        message = format_upload_error(e)
+        print(f"Upload failed for walk-in: {e}")
         log = UploadLog(
             file_name=file.filename,
             upload_type="Walk-in",
             uploaded_by_id=current_user.id,
             timestamp=datetime.datetime.utcnow(),
             records_processed=0,
-            status=f"Failed: {str(e)[:100]}"
+            status=f"Failed: {message[:100]}"
         )
         db.add(log)
         db.commit()
-        raise HTTPException(status_code=500, detail=f"Error parsing file: {str(e)}")
+        raise HTTPException(status_code=400, detail=message)
 
 @router.get("/logs", response_model=List[schemas.UploadLogResponse])
 def get_upload_logs(
@@ -249,6 +306,33 @@ def get_upload_logs(
         res.uploader_name = log.uploaded_by.full_name if log.uploaded_by else "System"
         results.append(res)
     return results
+
+def ensure_upload_branch(db: Session, fallback_code: str) -> int:
+    existing = db.query(Branch).filter(Branch.code == fallback_code).first()
+    if existing:
+        return existing.id
+
+    branches = db.query(Branch).all()
+    if branches:
+        return branches[0].id
+
+    region = db.query(Region).first()
+    if not region:
+        region = Region(name="Default Upload Region")
+        db.add(region)
+        db.flush()
+
+    district = db.query(District).filter(District.region_id == region.id).first()
+    if not district:
+        district = District(name="Default Upload District", region_id=region.id)
+        db.add(district)
+        db.flush()
+
+    branch = Branch(name="Default Upload Branch", code=fallback_code, district_id=district.id)
+    db.add(branch)
+    db.flush()
+    return branch.id
+
 
 def random_offset_days() -> int:
     import random

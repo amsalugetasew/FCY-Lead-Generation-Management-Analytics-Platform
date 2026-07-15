@@ -24,13 +24,9 @@ export default function Login() {
   const [showDemoUsers, setShowDemoUsers] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   useEffect(() => {
-    // Only clear tokens if no valid session exists
-    // Don't wipe a valid session just because the login page mounted
-    const existingToken = localStorage.getItem("fcy_token");
-    if (existingToken) {
-      // Already logged in — layout wrapper will redirect away
-      return;
-    }
+    // sessionStorage is cleared on tab/browser close, so nothing to preserve
+    // Also clear any legacy fcy_token from localStorage (migration cleanup)
+    sessionStorage.removeItem("fcy_token");
     localStorage.removeItem("fcy_token");
     localStorage.removeItem("fcy_user");
   }, []);
@@ -89,14 +85,14 @@ export default function Login() {
       }
 
       const data = await response.json();
-      localStorage.setItem("fcy_token", data.access_token);
+      sessionStorage.setItem("fcy_token", data.access_token);
       localStorage.setItem("fcy_user", JSON.stringify(data));
 
       // Navigate to main dashboard root
       router.push("/");
     } catch (err: any) {
       // Clear any partial stored data on failure
-      localStorage.removeItem("fcy_token");
+      sessionStorage.removeItem("fcy_token");
       localStorage.removeItem("fcy_user");
       setError(err.message || "Connection failed. Please ensure the backend server is running on port 8000.");
     } finally {

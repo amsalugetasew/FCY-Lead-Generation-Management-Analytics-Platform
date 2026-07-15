@@ -5,6 +5,7 @@ from backend.database import Base
 from backend.models import Customer, Transaction, Lead, Branch, District, Region, User
 from backend.auth import get_password_hash, verify_password
 from backend.lead_generator import trigger_lead_generation
+from backend.routes import uploads
 import datetime
 
 # Setup an in-memory SQLite database for testing the logic cleanly
@@ -136,3 +137,12 @@ def test_lead_generation_regular_sender(db_session):
     assert lead.lead_type == "Sender"
     assert lead.category == "Regular Sender"
     assert "preferential exchange rates" in lead.recommended_action
+
+
+def test_ensure_upload_branch_creates_default_branch_when_missing(db_session):
+    branch_id = uploads.ensure_upload_branch(db_session, "CBE9999")
+
+    branch = db_session.query(Branch).filter(Branch.id == branch_id).first()
+    assert branch is not None
+    assert branch.code == "CBE9999"
+    assert branch.name == "Default Upload Branch"

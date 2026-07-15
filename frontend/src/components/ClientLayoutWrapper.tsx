@@ -17,25 +17,29 @@ export default function ClientLayoutWrapper({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     const isLoginPath = pathname === "/login";
 
     if (!token) {
       setAuthorized(false);
-      setLoading(false);
       if (!isLoginPath) {
-        router.push("/login");
+        router.replace("/login");
+        // Keep loading=true so nothing renders until navigation completes
+      } else {
+        setLoading(false);
       }
     } else {
       setAuthorized(true);
-      setLoading(false);
       if (isLoginPath) {
-        router.push("/");
+        router.replace("/");
+        // Keep loading=true until we land on the dashboard
+      } else {
+        setLoading(false);
       }
     }
   }, [pathname, router]);
 
-  // Loading spinner while checking local storage authentication
+  // Loading spinner while checking local storage authentication or redirecting
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 w-full flex flex-col items-center justify-center">

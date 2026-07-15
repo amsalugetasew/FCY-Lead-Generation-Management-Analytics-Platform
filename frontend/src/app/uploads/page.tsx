@@ -11,13 +11,14 @@ export default function ManualUploads() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [fileSummary, setFileSummary] = useState<string>("");
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
-    const jwtToken = localStorage.getItem("fcy_token");
+    const jwtToken = sessionStorage.getItem("fcy_token");
     if (userStr && jwtToken) {
       setUser(JSON.parse(userStr));
     }
@@ -25,7 +26,7 @@ export default function ManualUploads() {
   }, []);
 
   const fetchUploadHistory = async () => {
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
     try {
       const res = await fetch("/api/uploads/logs", {
@@ -52,24 +53,29 @@ export default function ManualUploads() {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
+      const selectedFile = e.dataTransfer.files[0];
+      setFile(selectedFile);
+      setFileSummary(`${selectedFile.name} • ${(selectedFile.size / 1024).toFixed(1)} KB • ${selectedFile.type || "unknown type"}`);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      setFileSummary(`${selectedFile.name} • ${(selectedFile.size / 1024).toFixed(1)} KB • ${selectedFile.type || "unknown type"}`);
     }
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!file || !token) return;
     
     setUploading(true);
     setResult(null);
     setError(null);
+    setFileSummary((prev) => prev || (file ? `${file.name} • ${(file.size / 1024).toFixed(1)} KB` : ""));
 
     const formData = new FormData();
     formData.append("file", file);
@@ -86,8 +92,30 @@ export default function ManualUploads() {
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "Server failed to process file.");
+        const fallbackMessage = `Upload failed with status ${res.status}.`;
+        let message = fallbackMessage;
+
+        try {
+          const text = await res.text();
+          if (text) {
+            try {
+              const errData = JSON.parse(text);
+              if (typeof errData?.detail === "string") {
+                message = errData.detail;
+              } else if (errData?.detail) {
+                message = JSON.stringify(errData.detail);
+              } else {
+                message = text;
+              }
+            } catch {
+              message = text;
+            }
+          }
+        } catch {
+          message = fallbackMessage;
+        }
+
+        throw new Error(message);
       }
 
       const data = await res.json();
@@ -191,7 +219,7 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
                 >
                   <input 
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.xlsx,.xls"
                     ref={fileInputRef}
                     onChange={handleFileChange}
                     className="hidden"
@@ -202,17 +230,25 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
                   </div>
                   
                   {file ? (
-                    <div className="flex flex-col items-center gap-1">
+                    <div className="flex flex-col items-center gap-1 text-center">
                       <span className="text-xs font-semibold text-slate-800 truncate max-w-[250px]">{file.name}</span>
                       <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(1)} KB</span>
+                      <span className="text-[10px] text-indigo-600 font-medium">Loaded and ready for upload</span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-1">
                       <span className="text-xs font-semibold text-slate-600">Drag & Drop or Click to Browse</span>
-                      <span className="text-[10px] text-slate-450">Supports CSV text files containing transaction rows</span>
+                      <span className="text-[10px] text-slate-450">Supports CSV, XLSX, and XLS files containing transaction rows</span>
                     </div>
                   )}
                 </div>
+
+                {fileSummary && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] text-slate-600">
+                    <div className="font-semibold text-slate-700">Loaded file</div>
+                    <div>{fileSummary}</div>
+                  </div>
+                )}
 
                 {/* Submit button */}
                 <button
@@ -220,7 +256,7 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
                   disabled={!file || uploading}
                   className="w-full py-3 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] hover:bg-gradient-to-r hover:from-[#CFB53B] hover:to-[#8E288D] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/10 cursor-pointer"
                 >
-                  {uploading ? "Processing and Analyzing CSV..." : "Process Upload & Refresh Leads"}
+                  {uploading ? "Processing and Analyzing file..." : "Process Upload & Refresh Leads"}
                 </button>
               </form>
 

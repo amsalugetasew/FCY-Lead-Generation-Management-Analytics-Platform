@@ -40,7 +40,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
-    const jwtToken = localStorage.getItem("fcy_token");
+    const jwtToken = sessionStorage.getItem("fcy_token");
     if (userStr && jwtToken) {
       setUser(JSON.parse(userStr));
       setToken(jwtToken);

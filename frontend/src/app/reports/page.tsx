@@ -47,7 +47,7 @@ export default function ReportsExport() {
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
-    const jwtToken = localStorage.getItem("fcy_token");
+    const jwtToken = sessionStorage.getItem("fcy_token");
     if (userStr && jwtToken) {
       const u = JSON.parse(userStr);
       setUser(u);
@@ -68,7 +68,7 @@ export default function ReportsExport() {
   // Fetch geographic lists
   useEffect(() => {
     if (!authReady) return;
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
     const fetchGeo = async () => {
       try {
@@ -120,7 +120,7 @@ export default function ReportsExport() {
   }, [selectedDistrict, districts]);
 
   const handleDownload = async (reportId: string, format: string) => {
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
     const downloadKey = `${reportId}-${format}`;
     setDownloading(downloadKey);
@@ -170,10 +170,10 @@ export default function ReportsExport() {
   return (
     <div className="flex flex-col gap-8">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-800 leading-tight">Analytics Reports Generator</h2>
-        <p className="text-slate-500 text-xs mt-1">Export structured summaries in PDF, Excel, and CSV formats with geographical filter controls.</p>
-      </div>
+      {/* <div className="flex">
+        <h2 className="text-2xl font-bold text-slate-800 leading-tight mr-3">Analytics Reports Generator</h2>
+        <p className="text-slate-500 text-xs mt-2">Export structured summaries in PDF, Excel, and CSV formats with geographical filter controls.</p>
+      </div> */}
 
       {/* Scope filter selector card */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col gap-6">
@@ -234,7 +234,7 @@ export default function ReportsExport() {
       </div>
 
       {/* Reports Grid List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {REPORTS_LIST.map((report) => {
           const isLocked = report.lockedForBranch && user.level === "Branch";
           
@@ -265,8 +265,7 @@ export default function ReportsExport() {
                 <button
                   onClick={() => handleDownload(report.id, "pdf")}
                   disabled={isLocked || downloading !== null}
-                  className="px-3 py-2 bg-red-50 hover:bg-red-600 border border-red-200 text-red-600 hover:text-white disabled:opacity-50 font-bold text-[10px] rounded-lg cursor-pointer transition flex items-center gap-1.5"
-                >
+                  className="px-3 py-2 bg-slate-50 hover:bg-slate-200 border border-slate-200 text-slate-600 hover:text-slate-800 disabled:opacity-50 font-bold text-[10px] rounded-lg cursor-pointer transition flex items-center gap-1.5"                >
                   <FileText size={12} />
                   PDF Format
                 </button>
@@ -275,7 +274,7 @@ export default function ReportsExport() {
                 <button
                   onClick={() => handleDownload(report.id, "excel")}
                   disabled={isLocked || downloading !== null}
-                  className="px-3 py-2 bg-emerald-50 hover:bg-emerald-600 border border-emerald-200 text-emerald-600 hover:text-white disabled:opacity-50 font-bold text-[10px] rounded-lg cursor-pointer transition flex items-center gap-1.5"
+                  className="px-3 py-2 bg-slate-50 hover:bg-slate-200 border border-slate-200 text-slate-600 hover:text-slate-800 disabled:opacity-50 font-bold text-[10px] rounded-lg cursor-pointer transition flex items-center gap-1.5"
                 >
                   <FileSpreadsheet size={12} />
                   Excel Sheet

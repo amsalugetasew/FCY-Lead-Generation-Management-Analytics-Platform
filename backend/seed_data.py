@@ -1,9 +1,16 @@
 import datetime
+import os
 import random
 from sqlalchemy.orm import Session
 from backend.database import SessionLocal, Base, engine
 from backend.models import Region, District, Branch, User, Customer, Transaction, Lead, FollowUp
 from backend.auth import get_password_hash
+
+
+def should_seed_on_startup() -> bool:
+    value = os.getenv("SEED_ON_STARTUP", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
 
 def seed_database():
     db = SessionLocal()

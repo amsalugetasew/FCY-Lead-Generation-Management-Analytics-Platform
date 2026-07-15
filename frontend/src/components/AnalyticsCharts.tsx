@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
+import { round } from "echarts/types/src/util/number.js";
 
 interface ChartProps {
   trendData: any[]; // { period: string, volume: number, lead_count: number, converted_count: number }
@@ -26,12 +27,15 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
         backgroundColor: "#ffffff",
         borderColor: "#cbd5e1",
         borderWidth: 1,
+        rounded: '2xl',
+        shadowColor: "rgba(0, 0, 0, 0.1)",
+        shadowBlur: 10,
         textStyle: { color: "#1e293b" },
         formatter: (params: any) => {
           const p = params[0];
           return `<div class="p-1 text-left">
             <span class="text-[10px] text-slate-400 font-bold block uppercase">${p.name}</span>
-            <span class="text-xs font-semibold text-slate-800 mt-1 block">Volume: <b class="text-indigo-600">$${p.value.toLocaleString()}</b></span>
+            <span class="text-xs font-semibold text-slate-800 mt-1 block">Amount: <b class="text-[#8E288D]">ETB ${p.value.toLocaleString()}</b></span>
           </div>`;
         }
       },
@@ -61,7 +65,7 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
           height: 16,
           borderColor: "transparent",
           fillerColor: "rgba(99, 102, 241, 0.08)",
-          handleStyle: { color: "#6366f1" },
+          handleStyle: { color: "#8E288D" },
           textStyle: { color: "#64748b", fontSize: 9 }
         }
       ],
@@ -72,13 +76,21 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
           type: "line",
           smooth: true,
           showSymbol: false,
-          lineStyle: { width: 3.5, color: "#6366f1" },
+          lineStyle: {
+            width: 4,
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: "#8E288D" },
+              { offset: 0.5, color: "#CFB53B" },
+              { offset: 1, color: "#1A1A1A" }
+            ])
+          },
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "rgba(99, 102, 241, 0.2)" },
-              { offset: 1, color: "rgba(99, 102, 241, 0)" }
+              { offset: 0, color: "rgba(142,40,141,0.30)" },
+              { offset: 0.5, color: "rgba(207,181,59,0.15)" },
+              { offset: 1, color: "rgba(0,0,0,0.02)" }
             ])
-          }
+          },
         }
       ]
     });
@@ -101,6 +113,9 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
         trigger: "axis",
         backgroundColor: "#ffffff",
         borderColor: "#cbd5e1",
+        rounded: '2xl',
+        shadowColor: "rgba(0, 0, 0, 0.1)",
+        shadowBlur: 10,
         borderWidth: 1,
         textStyle: { color: "#1e293b" }
       },
@@ -125,7 +140,7 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
           height: 16,
           borderColor: "transparent",
           fillerColor: "rgba(99, 102, 241, 0.08)",
-          handleStyle: { color: "#3b82f6" },
+          handleStyle: { color: "#8E288D" },
           textStyle: { color: "#64748b", fontSize: 9 }
         }
       ],
@@ -136,10 +151,10 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
           type: "bar",
           itemStyle: { 
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "#3b82f6" },
-              { offset: 1, color: "#1d4ed8" }
+              { offset: 0, color: "#CFB53B" },
+              // { offset: 1, color: "#8E288D" }
             ]),
-            borderRadius: [4, 4, 0, 0]
+            borderRadius: [6, 6, 0, 0]
           }
         },
         {
@@ -148,10 +163,10 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
           type: "bar",
           itemStyle: { 
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: "#10b981" },
-              { offset: 1, color: "#047857" }
+              { offset: 0, color: "#8E288D" },
+              // { offset: 1, color: "#CFB53B" }
             ]),
-            borderRadius: [4, 4, 0, 0]
+            borderRadius: [6, 6, 0, 0]
           }
         }
       ]
@@ -175,23 +190,20 @@ export default function AnalyticsCharts({ trendData }: ChartProps) {
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
       {/* Volume Trend Card */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex flex-col">
-            <h3 className="text-slate-800 font-bold text-base leading-tight">Historical FCY Volume Inflow</h3>
-            <span className="text-[11px] text-slate-400 mt-1">USD equivalent over time (slide/pinch to zoom)</span>
-          </div>
+        <div className="mb-6 flex justify-center">
+            <h3 className="text-slate-500 font-bold text-base text-center">Historical FCY Volume Inflow</h3>
         </div>
         <div ref={volumeChartRef} className="h-80 w-full"></div>
       </div>
 
       {/* Leads Generation vs Conversion Card */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex flex-col">
-            <h3 className="text-slate-800 font-bold text-base leading-tight">Leads Activity & Conversion Rates</h3>
-            <span className="text-[11px] text-slate-400 mt-1">Monthly leads generated vs leads converted to accounts/loans</span>
-          </div>
+        <div className="mb-6 flex justify-center">
+          <h3 className="text-slate-500 font-bold text-base text-center">
+            Monthly leads generated vs leads converted to accounts/loans
+          </h3>
         </div>
+
         <div ref={leadsChartRef} className="h-80 w-full"></div>
       </div>
     </div>

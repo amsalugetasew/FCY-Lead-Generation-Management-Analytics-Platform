@@ -98,7 +98,7 @@ export default function RoleSelector() {
       }
 
       const data = await response.json();
-      localStorage.setItem("fcy_token", data.access_token);
+      sessionStorage.setItem("fcy_token", data.access_token);
       localStorage.setItem("fcy_user", JSON.stringify(data));
       setActiveUser(data);
       setDropdownOpen(false);
@@ -126,7 +126,7 @@ export default function RoleSelector() {
           const form = new FormData();
           form.append("file", file);
           const userId = activeUser?.id;
-          const token = localStorage.getItem("fcy_token");
+          const token = sessionStorage.getItem("fcy_token");
           if (!userId || !token) throw new Error("No authenticated user.");
 
           const res = await fetch(`/api/auth/users/${userId}/avatar`, {
@@ -172,7 +172,7 @@ export default function RoleSelector() {
   };
 
   const handleSignOut = () => {
-    localStorage.removeItem("fcy_token");
+    sessionStorage.removeItem("fcy_token");
     localStorage.removeItem("fcy_user");
     window.location.href = "/login";
   };
@@ -257,7 +257,7 @@ export default function RoleSelector() {
           <div className="h-px bg-slate-100 w-full my-4"></div>
 
           {/* Role switcher simulation */}
-          <div className="w-full flex flex-col gap-2">
+          {/* <div className="w-full flex flex-col gap-2">
             <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider text-left block">
               Simulate Access Identity
             </span>
@@ -273,7 +273,7 @@ export default function RoleSelector() {
                 </option>
               ))}
             </select>
-          </div>
+          </div> */}
 
           <div className="h-px bg-slate-100 w-full my-4"></div>
 

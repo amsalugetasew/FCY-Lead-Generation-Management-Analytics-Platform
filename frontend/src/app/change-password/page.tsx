@@ -25,7 +25,7 @@ export default function ChangePassword() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
-    const jwtToken = localStorage.getItem("fcy_token");
+    const jwtToken = sessionStorage.getItem("fcy_token");
     const userStr = localStorage.getItem("fcy_user");
     
     if (jwtToken && userStr) {

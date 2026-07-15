@@ -35,7 +35,7 @@ export default function Leads() {
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
-    const jwtToken = localStorage.getItem("fcy_token");
+    const jwtToken = sessionStorage.getItem("fcy_token");
     if (userStr && jwtToken) {
       setUser(JSON.parse(userStr));
     }
@@ -43,7 +43,7 @@ export default function Leads() {
   }, []);
 
   const fetchLeads = async () => {
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token) {
       setFetchError("No auth token found. Please log in again.");
       setLoading(false);
@@ -89,7 +89,7 @@ export default function Leads() {
   }, [authReady, search, selectedType, selectedCategory, selectedStatus, selectedPriority]);
 
   const handleGenerateLeads = async () => {
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
     setGenerating(true);
     setMessage("");
@@ -122,7 +122,7 @@ export default function Leads() {
 
   const submitFollowup = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token || !selectedLead) return;
     try {
       const res = await fetch(`/api/leads/${selectedLead.id}/followup`, {

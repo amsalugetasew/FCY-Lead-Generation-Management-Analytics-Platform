@@ -91,7 +91,7 @@ export default function Sidebar() {
   ];
 
   const handleSignOut = () => {
-    localStorage.removeItem("fcy_token");
+    sessionStorage.removeItem("fcy_token");
     localStorage.removeItem("fcy_user");
     window.location.href = "/login";
   };

@@ -41,7 +41,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
-    const jwtToken = localStorage.getItem("fcy_token");
+    const jwtToken = sessionStorage.getItem("fcy_token");
     
     if (userStr && jwtToken) {
       const u = JSON.parse(userStr);
@@ -58,14 +58,15 @@ export default function Dashboard() {
         setSelectedDistrict(String(u.district_id));
         setSelectedBranch(String(u.branch_id));
       }
+      setAuthReady(true);
     }
-    setAuthReady(true);
+    // If no token, ClientLayoutWrapper will handle redirect to /login
   }, []);
 
   // Fetch geographical tree hierarchy
   useEffect(() => {
     if (!authReady) return;
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
     
     const fetchHierarchy = async () => {
@@ -123,7 +124,7 @@ export default function Dashboard() {
 
   // Fetch Dashboard Stats & Trends
   const fetchDashboardData = async () => {
-    const token = localStorage.getItem("fcy_token");
+    const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
     setLoading(true);
     try {
@@ -190,6 +191,9 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  // Guard: if no user in state, don't render (ClientLayoutWrapper will redirect)
+  if (!user) return null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -324,7 +328,7 @@ export default function Dashboard() {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 items-center gap-4 z-5">
         {/* KPI: Total Volume */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
           <div className="flex justify-between items-start">
@@ -425,34 +429,52 @@ export default function Dashboard() {
       ) : (
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
               <TrendingUp size={16} className="text-[#8E288D]" />
-              Trend Engine (Apache ECharts)
+              Trend Engine
             </h3>
-            <div className="flex bg-slate-100 border border-slate-200 rounded-xl p-0.5">
+            {/* <div className="flex bg-slate-100 border border-slate-200 rounded-xl p-0.5"> */}
+            <div className="flex border-b border-slate-200">
               <button
                 onClick={() => setTrendView("monthly")}
-                className={`px-3 py-1 text-[10px] font-bold rounded-lg cursor-pointer transition ${
-                  trendView === "monthly" ? "bg-[#8E288D] text-white" : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`px-4 py-2 text-xs font-semibold transition relative ${trendView === "monthly"
+                    ? "text-[#8E288D] border-b-2 border-[#8E288D]"
+                    : "text-slate-500 hover:text-[#8E288D]"
+                  }`}
               >
                 Monthly
+
+                {trendView === "monthly" && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#8E288D] rounded-full"></span>
+                )}
               </button>
+
               <button
                 onClick={() => setTrendView("quarterly")}
-                className={`px-3 py-1 text-[10px] font-bold rounded-lg cursor-pointer transition ${
-                  trendView === "quarterly" ? "bg-[#8E288D] text-white" : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`px-4 py-2 text-xs font-semibold transition relative ${trendView === "quarterly"
+                    ? "text-[#8E288D] border-b-2 border-[#8E288D]"
+                    : "text-slate-500 hover:text-[#8E288D]"
+                  }`}
               >
                 Quarterly
+
+                {trendView === "quarterly" && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#8E288D] rounded-full"></span>
+                )}
               </button>
+
               <button
                 onClick={() => setTrendView("annual")}
-                className={`px-3 py-1 text-[10px] font-bold rounded-lg cursor-pointer transition ${
-                  trendView === "annual" ? "bg-[#8E288D] text-white" : "text-slate-500 hover:text-slate-700"
-                }`}
+                className={`px-4 py-2 text-xs font-semibold transition relative ${trendView === "annual"
+                    ? "text-[#8E288D] border-b-2 border-[#8E288D]"
+                    : "text-slate-500 hover:text-[#8E288D]"
+                  }`}
               >
                 Annual
+
+                {trendView === "annual" && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#8E288D] rounded-full"></span>
+                )}
               </button>
             </div>
           </div>

@@ -4,10 +4,10 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from backend.database import engine, Base, get_db
+from backend.database import engine, Base, SessionLocal, get_db
 from backend.models import User
 from backend.routes import auth, leads, analytics, uploads, reports
-from backend.seed_data import seed_database
+from backend.seed_data import seed_database, should_seed_on_startup
 from fastapi.staticfiles import StaticFiles
 import os
 
@@ -46,18 +46,18 @@ def startup_db_initialization():
         print("Database schema successfully verified.")
         
         # Check if database has seeded data
-        db = SessionLocal = engine.connect()
-        # Create temporary session
-        from sqlalchemy.orm import sessionmaker
-        SessionTemp = sessionmaker(bind=engine)
-        session = SessionTemp()
+        session = SessionLocal()
         
         user_count = session.query(User).count()
         if user_count == 0:
-            print("No users found in database. Seeding initial development data...")
-            session.close()
-            seed_database()
-            print("Development data seeded.")
+            if should_seed_on_startup():
+                print("No users found in database and SEED_ON_STARTUP is enabled. Seeding initial development data...")
+                session.close()
+                seed_database()
+                print("Development data seeded.")
+            else:
+                session.close()
+                print("No users found in database. Seeding is disabled by default. Set SEED_ON_STARTUP=true to seed once, or run the seed script manually.")
         else:
             try:
                 from backend.database import ensure_avatar_column
