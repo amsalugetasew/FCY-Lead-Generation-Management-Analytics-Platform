@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import AIContextMenu from "@/components/AIContextMenu";
+import AIModal from "@/components/AIModal";
+import AIChatModal from "@/components/AIChatModal";
 import { 
   FileSpreadsheet, 
   FileText, 
@@ -44,6 +47,16 @@ export default function ReportsExport() {
   const [selectedBranch, setSelectedBranch] = useState("");
 
   const [downloading, setDownloading] = useState<string | null>(null);
+
+  // AI interaction state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean; scope: string } | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiModalTitle, setAiModalTitle] = useState("");
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiChatScope, setAiChatScope] = useState("reports_export");
+  const [aiChatContext, setAiChatContext] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
@@ -119,6 +132,78 @@ export default function ReportsExport() {
     }
   }, [selectedDistrict, districts]);
 
+  // Close context menu on outside click
+  useEffect(() => {
+    const onClick = () => setContextMenu(null);
+    if (contextMenu?.visible) window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [contextMenu]);
+
+  const openAiForScope = async (scope: string, intent: string = "insights") => {
+    setAiLoading(true);
+    setAiModalTitle(`${intent.charAt(0).toUpperCase() + intent.slice(1)} • ${scope}`);
+    setAiModalOpen(true);
+    setAiResult(null);
+
+    try {
+      const token = sessionStorage.getItem("fcy_token");
+      const res = await fetch(`/api/ai/analysis`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ scope, intent, use_graq: true })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setAiResult({ error: errData?.detail || `AI request failed (${res.status})` });
+      } else {
+        const data = await res.json();
+        setAiResult(data);
+      }
+    } catch (e: any) {
+      setAiResult({ error: e.message });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, scope: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, visible: true, scope });
+  };
+
+  const handleAiOptionSelect = (id: string) => {
+    if (!contextMenu) return;
+    setContextMenu(null);
+    const intentMap: Record<string, string> = {
+      insights: "insights",
+      recommendations: "recommendations",
+      chatbot: "chat",
+      report: "report",
+      overall: "report",
+    };
+    const intent = intentMap[id] || "insights";
+    if (id === "chatbot") {
+      setAiChatScope(contextMenu.scope);
+      setAiChatContext({
+        filters: {
+          region_id: selectedRegion || undefined,
+          district_id: selectedDistrict || undefined,
+          branch_id: selectedBranch || undefined,
+        },
+        user_scope: {
+          level: user?.level,
+          office_type: user?.office_type,
+          region_id: user?.region_id,
+          district_id: user?.district_id,
+          branch_id: user?.branch_id,
+        },
+      });
+      setAiChatOpen(true);
+    } else {
+      openAiForScope(contextMenu.scope, intent);
+    }
+  };
+
   const handleDownload = async (reportId: string, format: string) => {
     const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
@@ -167,8 +252,19 @@ export default function ReportsExport() {
 
   if (!authReady) return null;
 
+  if (user?.level === "Branch") {
+    return (
+      <div className="flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-8 text-amber-800 shadow-sm">
+        <h2 className="text-xl font-bold">Report export access is restricted</h2>
+        <p className="text-sm leading-6">
+          Branch-level users can update lead status and follow-up details, but they are not allowed to export aggregate reports or cross-branch summaries.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8" onContextMenu={(e) => handleContextMenu(e, "reports_export")}>
       {/* Header */}
       {/* <div className="flex">
         <h2 className="text-2xl font-bold text-slate-800 leading-tight mr-3">Analytics Reports Generator</h2>
@@ -234,7 +330,7 @@ export default function ReportsExport() {
       </div>
 
       {/* Reports Grid List */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6" onContextMenu={(e) => handleContextMenu(e, "reports_grid")}>
         {REPORTS_LIST.map((report) => {
           const isLocked = report.lockedForBranch && user.level === "Branch";
           
@@ -294,6 +390,25 @@ export default function ReportsExport() {
           );
         })}
       </div>
+
+      {/* AI Context Menu */}
+      {contextMenu?.visible && (
+        <AIContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          options={[
+            { id: "insights", label: "Insights" },
+            { id: "recommendations", label: "Recommendations" },
+            { id: "chatbot", label: "Chatbot" },
+            { id: "report", label: "AI Report" },
+          ]}
+          onSelect={handleAiOptionSelect}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      <AIModal open={aiModalOpen} title={aiModalTitle} result={aiLoading ? "Thinking..." : aiResult} onClose={() => setAiModalOpen(false)} />
+      <AIChatModal open={aiChatOpen} title="AI Assistant" scope={aiChatScope} user={user} context={aiChatContext} onClose={() => setAiChatOpen(false)} />
     </div>
   );
 }

@@ -2,15 +2,17 @@
 
 import React, { useEffect, useRef } from "react";
 import * as echarts from "echarts";
-import { round } from "echarts/types/src/util/number.js";
 
 interface ChartProps {
-  trendData: any[]; // { period: string, volume: number, lead_count: number, converted_count: number }
+  stats?: any;
+  trends?: any[]; // { period: string, volume: number, lead_count: number, converted_count: number }
+  loading?: boolean;
 }
 
-export default function AnalyticsCharts({ trendData }: ChartProps) {
+export default function AnalyticsCharts({ stats, trends, loading }: ChartProps) {
   const volumeChartRef = useRef<HTMLDivElement>(null);
   const leadsChartRef = useRef<HTMLDivElement>(null);
+  const trendData = trends || [];
 
   useEffect(() => {
     if (!volumeChartRef.current || !leadsChartRef.current || !trendData || trendData.length === 0) return;

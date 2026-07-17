@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, and_, or_, desc
 from datetime import datetime, timedelta
 from backend.models import Region, District, Branch, User, Customer, Transaction, Lead, FollowUp, UploadLog
@@ -15,6 +15,7 @@ def create_user(db: Session, user_data: Any, hashed_password: str) -> User:
         full_name=user_data.full_name,
         position=user_data.position,
         level=user_data.level,
+        office_type=(getattr(user_data, "office_type", None) or user_data.level),
         region_id=user_data.region_id,
         district_id=user_data.district_id,
         branch_id=user_data.branch_id
@@ -30,12 +31,13 @@ def apply_rbac_filter(query, user: User, model_class=Lead):
     Applies filters to a query based on the user's level and assigned jurisdiction.
     Supports queries containing Lead, Transaction, or Branch.
     """
-    if user.level == "Head Office":
+    office_type = getattr(user, "office_type", None) or user.level
+
+    if office_type == "Head Office" or user.level == "Head Office":
         return query
-        
-    elif user.level == "Region":
+
+    elif office_type == "Region" or user.level == "Region":
         if model_class == Lead:
-            # Lead is assigned to a branch, which belongs to a district, which belongs to the region
             return query.join(Branch, Lead.assigned_branch_id == Branch.id)\
                         .join(District, Branch.district_id == District.id)\
                         .filter(District.region_id == user.region_id)
@@ -46,8 +48,8 @@ def apply_rbac_filter(query, user: User, model_class=Lead):
         elif model_class == Branch:
             return query.join(District, Branch.district_id == District.id)\
                         .filter(District.region_id == user.region_id)
-            
-    elif user.level == "District":
+
+    elif office_type == "District" or user.level == "District":
         if model_class == Lead:
             return query.join(Branch, Lead.assigned_branch_id == Branch.id)\
                         .filter(Branch.district_id == user.district_id)
@@ -56,15 +58,15 @@ def apply_rbac_filter(query, user: User, model_class=Lead):
                         .filter(Branch.district_id == user.district_id)
         elif model_class == Branch:
             return query.filter(Branch.district_id == user.district_id)
-            
-    elif user.level == "Branch":
+
+    elif office_type == "Branch" or user.level == "Branch":
         if model_class == Lead:
             return query.filter(Lead.assigned_branch_id == user.branch_id)
         elif model_class == Transaction:
             return query.filter(Transaction.branch_id == user.branch_id)
         elif model_class == Branch:
             return query.filter(Branch.id == user.branch_id)
-            
+
     return query
 
 # --- Lead Management CRUD ---
@@ -171,13 +173,83 @@ def get_follow_ups_for_lead(db: Session, lead_id: int) -> List[FollowUp]:
     return db.query(FollowUp).filter(FollowUp.lead_id == lead_id).order_by(desc(FollowUp.timestamp)).all()
 
 # --- Customer & Transaction Profiles ---
+def _customer_is_accessible_to_user(db: Session, customer_id: int, user: User) -> bool:
+    if not customer_id or not user:
+        return False
+
+    office_type = getattr(user, "office_type", None) or user.level
+    if office_type == "Head Office" or user.level == "Head Office":
+        return True
+
+    tx_query = db.query(Transaction.id).filter(Transaction.customer_id == customer_id)
+    tx_query = apply_rbac_filter(tx_query, user, Transaction)
+    if tx_query.first():
+        return True
+
+    lead_query = db.query(Lead.id).filter(Lead.customer_id == customer_id)
+    lead_query = apply_rbac_filter(lead_query, user, Lead)
+    return bool(lead_query.first())
+
+
 def get_customer_details(db: Session, customer_id: int, user: User) -> Optional[Customer]:
-    # Check if user has access to this customer via transactions
-    cust = db.query(Customer).filter(Customer.id == customer_id).first()
-    return cust
+    if not _customer_is_accessible_to_user(db, customer_id, user):
+        return None
+    return db.query(Customer).filter(Customer.id == customer_id).first()
+
 
 def get_customer_transactions(db: Session, customer_id: int, limit: int = 100) -> List[Transaction]:
     return db.query(Transaction).filter(Transaction.customer_id == customer_id).order_by(desc(Transaction.timestamp)).limit(limit).all()
+
+
+def get_customer_ranking_data(db: Session, customer_id: int, user: User) -> Optional[Dict[str, Any]]:
+    if not _customer_is_accessible_to_user(db, customer_id, user):
+        return None
+
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        return None
+
+    branch_id = None
+    latest_transaction = db.query(Transaction).filter(Transaction.customer_id == customer_id).order_by(desc(Transaction.timestamp)).first()
+    if latest_transaction:
+        branch_id = latest_transaction.branch_id
+    else:
+        latest_lead = db.query(Lead).filter(Lead.customer_id == customer_id).order_by(desc(Lead.created_at)).first()
+        if latest_lead:
+            branch_id = latest_lead.assigned_branch_id
+
+    return {
+        "customer_id": customer.id,
+        "customer_name": customer.name,
+        "branch_id": branch_id,
+        "ranking_score": customer.ranking_score,
+        "ranking_label": customer.ranking_label,
+        "ranking_notes": customer.ranking_notes,
+    }
+
+
+def update_customer_ranking_data(
+    db: Session,
+    customer_id: int,
+    user: User,
+    ranking_score: Optional[float] = None,
+    ranking_label: Optional[str] = None,
+    ranking_notes: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    if not _customer_is_accessible_to_user(db, customer_id, user):
+        return None
+
+    customer = db.query(Customer).filter(Customer.id == customer_id).first()
+    if not customer:
+        return None
+
+    customer.ranking_score = ranking_score
+    customer.ranking_label = ranking_label
+    customer.ranking_notes = ranking_notes
+    db.commit()
+    db.refresh(customer)
+
+    return get_customer_ranking_data(db, customer.id, user)
 
 # --- Executive Dashboard Analytics ---
 def get_dashboard_stats(
@@ -269,20 +341,33 @@ def get_dashboard_stats(
         # Join transactions to restrict customers by branch
         cust_tx_query = db.query(Transaction.customer_id).distinct()
         cust_tx_query = apply_rbac_filter(cust_tx_query, user, Transaction)
+
         if region_id:
-            cust_tx_query = cust_tx_query.join(Branch, Transaction.branch_id == Branch.id)\
-                                         .join(District, Branch.district_id == District.id)\
-                                         .filter(District.region_id == region_id)
+            # Use aliased joins to avoid duplicate table/alias collisions when RBAC
+            # helpers have already joined Branch/District on the query.
+            BranchAlias = aliased(Branch)
+            DistrictAlias = aliased(District)
+            cust_tx_query = cust_tx_query.join(BranchAlias, Transaction.branch_id == BranchAlias.id)
+            cust_tx_query = cust_tx_query.join(DistrictAlias, BranchAlias.district_id == DistrictAlias.id)
+            cust_tx_query = cust_tx_query.filter(DistrictAlias.region_id == region_id)
         elif district_id:
-            cust_tx_query = cust_tx_query.join(Branch, Transaction.branch_id == Branch.id)\
-                                         .filter(Branch.district_id == district_id)
+            # Alias Branch to avoid duplicate joins if present
+            BranchAlias = aliased(Branch)
+            cust_tx_query = cust_tx_query.join(BranchAlias, Transaction.branch_id == BranchAlias.id)
+            cust_tx_query = cust_tx_query.filter(BranchAlias.district_id == district_id)
         elif branch_id:
             cust_tx_query = cust_tx_query.filter(Transaction.branch_id == branch_id)
             
         cust_ids = [r[0] for r in cust_tx_query.all() if r[0] is not None]
-        total_customers = db.query(Customer).filter(Customer.id.in_(cust_ids)).count()
-        total_walk_ins = db.query(Customer).filter(Customer.id.in_(cust_ids), Customer.is_existing_account_holder == False).count()
-        total_existing = db.query(Customer).filter(Customer.id.in_(cust_ids), Customer.is_existing_account_holder == True).count()
+        # Protect against empty IN() lists which can generate invalid SQL on some DBs
+        if not cust_ids:
+            total_customers = 0
+            total_walk_ins = 0
+            total_existing = 0
+        else:
+            total_customers = db.query(Customer).filter(Customer.id.in_(cust_ids)).count()
+            total_walk_ins = db.query(Customer).filter(Customer.id.in_(cust_ids), Customer.is_existing_account_holder == False).count()
+            total_existing = db.query(Customer).filter(Customer.id.in_(cust_ids), Customer.is_existing_account_holder == True).count()
     else:
         total_customers = total_customers_q.count()
         total_walk_ins = total_customers_q.filter(Customer.is_existing_account_holder == False).count()
@@ -429,41 +514,53 @@ def get_rankings(
     # Rankings aggregated by Branch
     if rank_by == "branch":
         query = db.query(
-            Branch.name.label("name"),
+            Branch.id.label("id"),
+            Branch.name.label("branch_name"),
+            District.name.label("district_name"),
+            Region.name.label("region_name"),
             func.sum(Transaction.usd_equivalent).label("volume"),
             func.count(func.distinct(Lead.id)).label("leads_count"),
             func.sum(Lead.status == "Converted").label("converted_count")
         ).select_from(Branch)\
+         .join(District, Branch.district_id == District.id)\
+         .join(Region, District.region_id == Region.id)\
          .outerjoin(Transaction, Transaction.branch_id == Branch.id)\
          .outerjoin(Lead, Lead.assigned_branch_id == Branch.id)
-         
-        query = apply_rbac_filter(query, user, Branch)
-        
-        results = query.group_by(Branch.id).order_by(desc("volume")).limit(limit).all()
+        # Apply RBAC filtering manually to avoid duplicate joins from apply_rbac_filter
+        if user.level == "Region":
+            query = query.filter(District.region_id == user.region_id)
+        elif user.level == "District":
+            query = query.filter(Branch.district_id == user.district_id)
+
+        results = query.group_by(Branch.id, District.id, Region.id).order_by(desc("volume")).limit(limit).all()
         
     elif rank_by == "district":
         # Aggregate by district
         query = db.query(
-            District.name.label("name"),
+            District.id.label("id"),
+            District.name.label("district_name"),
+            Region.name.label("region_name"),
             func.sum(Transaction.usd_equivalent).label("volume"),
             func.count(func.distinct(Lead.id)).label("leads_count"),
             func.sum(Lead.status == "Converted").label("converted_count")
         ).select_from(District)\
          .join(Branch, Branch.district_id == District.id)\
+         .join(Region, District.region_id == Region.id)\
          .outerjoin(Transaction, Transaction.branch_id == Branch.id)\
          .outerjoin(Lead, Lead.assigned_branch_id == Branch.id)
-         
+
         # Enforce region scope for district level rankings
         if user.level == "Region":
             query = query.filter(District.region_id == user.region_id)
         elif user.level == "District":
             query = query.filter(District.id == user.district_id)
-            
-        results = query.group_by(District.id).order_by(desc("volume")).limit(limit).all()
+
+        results = query.group_by(District.id, Region.id).order_by(desc("volume")).limit(limit).all()
         
     else: # region
         query = db.query(
-            Region.name.label("name"),
+            Region.id.label("id"),
+            Region.name.label("region_name"),
             func.sum(Transaction.usd_equivalent).label("volume"),
             func.count(func.distinct(Lead.id)).label("leads_count"),
             func.sum(Lead.status == "Converted").label("converted_count")
@@ -472,10 +569,10 @@ def get_rankings(
          .join(Branch, Branch.district_id == District.id)\
          .outerjoin(Transaction, Transaction.branch_id == Branch.id)\
          .outerjoin(Lead, Lead.assigned_branch_id == Branch.id)
-         
+
         if user.level == "Region":
             query = query.filter(Region.id == user.region_id)
-            
+
         results = query.group_by(Region.id).order_by(desc("volume")).limit(limit).all()
         
     rankings = []
@@ -484,7 +581,11 @@ def get_rankings(
         converted_count = r.converted_count or 0
         conv_rate = (converted_count / leads_count * 100) if leads_count > 0 else 0.0
         rankings.append({
-            "name": r.name,
+            "id": getattr(r, "id", None),
+            "name": getattr(r, "branch_name", None) or getattr(r, "district_name", None) or getattr(r, "region_name", None) or "",
+            "branch_name": getattr(r, "branch_name", None),
+            "district_name": getattr(r, "district_name", None),
+            "region_name": getattr(r, "region_name", None),
             "volume": round(r.volume or 0.0, 2),
             "leads_count": leads_count,
             "conversion_rate": round(conv_rate, 2)

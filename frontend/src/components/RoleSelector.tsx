@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { 
   User, 
   Camera, 
@@ -32,6 +33,7 @@ export default function RoleSelector() {
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -68,16 +70,17 @@ export default function RoleSelector() {
     }
   }, []);
 
-  // Close dropdown on click outside
+  // Close dropdown on click outside (but not when logout confirm is open)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (showLogoutConfirm) return; // Don't close dropdown area while confirm is showing
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [showLogoutConfirm]);
 
   const handleRoleSwitch = async (username: string) => {
     setLoading(true);
@@ -99,8 +102,12 @@ export default function RoleSelector() {
 
       const data = await response.json();
       sessionStorage.setItem("fcy_token", data.access_token);
-      localStorage.setItem("fcy_user", JSON.stringify(data));
-      setActiveUser(data);
+      const userPayload = {
+        ...data,
+        office_type: data.office_type || data.level,
+      };
+      localStorage.setItem("fcy_user", JSON.stringify(userPayload));
+      setActiveUser(userPayload);
       setDropdownOpen(false);
       
       // Trigger a page refresh to update all components with new token/RBAC limits
@@ -172,9 +179,19 @@ export default function RoleSelector() {
   };
 
   const handleSignOut = () => {
+    setDropdownOpen(false); // Close dropdown first
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     sessionStorage.removeItem("fcy_token");
     localStorage.removeItem("fcy_user");
+    setShowLogoutConfirm(false);
     window.location.href = "/login";
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   const triggerFileInput = (e: React.MouseEvent) => {
@@ -280,13 +297,40 @@ export default function RoleSelector() {
           {/* Sign Out Button */}
           <button
             onClick={handleSignOut}
-            className="w-full py-2 bg-slate-50 hover:bg-red-50 text-slate-655 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2 bg-slate-50 hover:bg-pink-50 text-slate-655 hover:text-pink-500 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
           >
             <LogOut size={13} />
             Sign Out
           </button>
           
         </div>
+      )}
+
+      {/* Logout Confirmation Modal — rendered via portal to escape dropdown stacking context */}
+      {showLogoutConfirm && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-slate-800">Confirm Sign Out?</h2>
+                <p className="text-base text-slate-600">Are you sure you want to sign out from your account? You'll need to log in again to access the platform.</p>
+              </div>
+              <div className="flex gap-4 justify-end pt-2">
+                <button
+                  onClick={cancelLogout}
+                  className="flex-1 px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-sm font-semibold transition cursor-pointer">
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmLogout}
+                  className="flex-1 px-6 py-2.5 bg-pink-400 hover:bg-pink-500 text-white rounded-lg text-sm font-semibold transition cursor-pointer">
+                  Yes, Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

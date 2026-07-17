@@ -73,6 +73,42 @@ def get_trend_chart_data(
         branch_id=branch_id
     )
 
+@router.get("/customers/{customer_id}/ranking", response_model=schemas.CustomerRankingResponse)
+def get_customer_ranking_data(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    ranking = crud.get_customer_ranking_data(db, customer_id=customer_id, user=current_user)
+    if not ranking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer ranking not found or access denied"
+        )
+    return ranking
+
+@router.put("/customers/{customer_id}/ranking", response_model=schemas.CustomerRankingResponse)
+def update_customer_ranking_data(
+    customer_id: int,
+    ranking_in: schemas.CustomerRankingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    ranking = crud.update_customer_ranking_data(
+        db,
+        customer_id=customer_id,
+        user=current_user,
+        ranking_score=ranking_in.ranking_score,
+        ranking_label=ranking_in.ranking_label,
+        ranking_notes=ranking_in.ranking_notes,
+    )
+    if not ranking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer ranking not found or access denied"
+        )
+    return ranking
+
 @router.get("/rankings", response_model=List[schemas.RankPoint])
 def get_performance_rankings(
     rank_by: str = "branch", # "branch", "district", "region"
@@ -86,11 +122,11 @@ def get_performance_rankings(
             detail="Invalid rank_by. Choose 'branch', 'district', or 'region'."
         )
         
-    # Check permissions: Branch levels can't view aggregated comparisons
-    if current_user.level == "Branch" and rank_by != "branch":
+    # Branch-level users are blocked from aggregate comparisons and broader summaries
+    if current_user.level == "Branch":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Branch level users are blocked from viewing aggregated district/regional rankings."
+            detail="Branch level users are blocked from viewing aggregate rankings and performance summaries."
         )
         
     return crud.get_rankings(

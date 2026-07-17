@@ -86,7 +86,10 @@ export default function Login() {
 
       const data = await response.json();
       sessionStorage.setItem("fcy_token", data.access_token);
-      localStorage.setItem("fcy_user", JSON.stringify(data));
+      localStorage.setItem("fcy_user", JSON.stringify({
+        ...data,
+        office_type: data.office_type || data.level,
+      }));
 
       // Navigate to main dashboard root
       router.push("/");

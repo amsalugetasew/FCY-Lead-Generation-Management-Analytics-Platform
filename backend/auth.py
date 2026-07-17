@@ -1,6 +1,8 @@
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional, Union, Any
+from dotenv import load_dotenv
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -8,6 +10,9 @@ from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend.models import User
 from backend.schemas import TokenData
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env", override=False)
 
 # Configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "7b6bcfdc7e5c54d5b248a3182613c7263b652875f56df731")

@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ShieldAlert, User, Briefcase } from "lucide-react";
+import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, ShieldAlert, User, Briefcase, X } from "lucide-react";
 
-export default function ChangePassword() {
+type ChangePasswordProps = {
+  onClose?: () => void;
+};
+
+export default function ChangePassword({ onClose }: ChangePasswordProps) {
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   
@@ -126,9 +130,12 @@ export default function ChangePassword() {
       setNewPassword("");
       setConfirmPassword("");
       
-      // Trigger a light reload to push context changes to the sidebar
       setTimeout(() => {
-        window.location.reload();
+        if (onClose) {
+          onClose();
+        } else {
+          window.location.reload();
+        }
       }, 1000);
 
     } catch (err: any) {
@@ -139,17 +146,24 @@ export default function ChangePassword() {
   };
 
   return (
-    <div className="max-w-md mx-auto flex flex-col gap-6">
-      {/* <div>
-        <h2 className="text-2xl font-bold text-slate-800 leading-tight">My Security Profile</h2>
-        <p className="text-slate-500 text-xs mt-1">Manage your personal identification details and account security settings.</p>
-      </div> */}
-
+    <div className="w-full max-w-md mx-auto flex flex-col gap-6">
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col gap-6">
-        <h3 className="text-slate-800 font-bold text-sm border-b border-slate-100 pb-3 flex items-center gap-2">
-          <ShieldAlert size={16} className="text-indigo-650" />
-          Personal Details to Change Password
-        </h3>
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 className="text-slate-800 font-bold text-sm flex items-center gap-2">
+            <ShieldAlert size={16} className="text-indigo-650" />
+            Personal Details to Change Password
+          </h3>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
+              aria-label="Close password change form"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-xs">
           

@@ -45,6 +45,14 @@ def read_leads(
         # Fetch branch name
         branch = db.query(Branch).filter(Branch.id == lead.assigned_branch_id).first()
         lead_res.branch_name = branch.name if branch else "Unknown Branch"
+        # Attach district and region names when possible
+        if branch:
+            district = db.query(DB:=__import__('backend').models.District).filter(DB.id == branch.district_id).first()
+            if district:
+                lead_res.district_name = district.name
+                region = db.query(DB2:=__import__('backend').models.Region).filter(DB2.id == district.region_id).first()
+                if region:
+                    lead_res.region_name = region.name
         
         # Attach follow-ups user names
         for fu_res, fu_model in zip(lead_res.follow_ups, lead.follow_ups):
@@ -70,6 +78,13 @@ def read_lead(
     lead_res = schemas.LeadResponse.model_validate(lead)
     branch = db.query(Branch).filter(Branch.id == lead.assigned_branch_id).first()
     lead_res.branch_name = branch.name if branch else "Unknown Branch"
+    if branch:
+        district = db.query(__import__('backend').models.District).filter(__import__('backend').models.District.id == branch.district_id).first()
+        if district:
+            lead_res.district_name = district.name
+            region = db.query(__import__('backend').models.Region).filter(__import__('backend').models.Region.id == district.region_id).first()
+            if region:
+                lead_res.region_name = region.name
     
     for fu_res, fu_model in zip(lead_res.follow_ups, lead.follow_ups):
         fu_res.user_name = fu_model.user.full_name if fu_model.user else "Unknown User"

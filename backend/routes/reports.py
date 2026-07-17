@@ -31,11 +31,11 @@ def download_report(
     """
     Generates and downloads analytical reports in CSV, Excel, or PDF format.
     """
-    # Enforce access control: branch users are blocked from district-performance and partnership summaries
-    if current_user.level == "Branch" and report_type in ["district-performance", "partnership"]:
+    # Enforce access control: branch users are blocked from aggregate report exports
+    if current_user.level == "Branch":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Branch officers are unauthorized to export district or strategic partnership summaries."
+            detail="Branch officers are unauthorized to export aggregate reports or cross-branch summaries."
         )
 
     # 1. Fetch relevant data depending on the report_type

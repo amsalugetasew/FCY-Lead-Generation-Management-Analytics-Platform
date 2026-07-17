@@ -56,7 +56,7 @@ export default function ClientLayoutWrapper({
 
   // Dashboard layout for authenticated pages
   return (
-    <div className="h-full flex w-full overflow-hidden bg-slate-50">
+    <div className="h-full flex w-full bg-slate-50">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 border-b border-slate-200/80 px-8 flex items-center justify-between bg-white/85 backdrop-blur-md z-10 shadow-sm shadow-slate-100">

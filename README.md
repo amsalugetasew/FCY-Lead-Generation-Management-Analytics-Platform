@@ -25,7 +25,43 @@ Create a database named `fcy_leads` or customize the database connection string 
 
 ---
 
-### Step 1: Run the Backend (FastAPI)
+### Step 1: Configure Environment Variables
+Create a `.env` file in the project root (same folder as this README) using the template in [.env.example](.env.example). The file supports two independent provider switches:
+
+```env
+JWT_SECRET_KEY=change-me-to-a-long-random-secret
+
+# Database provider: mysql or oracle
+DB_PROVIDER=mysql
+DATABASE_URL=mysql+pymysql://root:root@localhost:3306/fcy_leads
+# or provide DB_* values separately
+DB_USER=root
+DB_PASSWORD=root
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=fcy_leads
+# Oracle-specific values when DB_PROVIDER=oracle
+DB_SERVICE=xe
+
+PORT=8000
+BACKEND_BASE_URL=http://127.0.0.1:8000
+
+# LLM provider: groq or local
+LLM_PROVIDER=groq
+GRAQ_API_URL=https://api.groq.com/openai/v1
+GRAQ_API_KEY=
+GRAQ_MODEL=llama3-8b-8192
+LOCAL_LLM_URL=http://127.0.0.1:11434/v1/chat/completions
+LOCAL_LLM_MODEL=phi3
+```
+
+- `JWT_SECRET_KEY` is used for authentication tokens.
+- `DB_PROVIDER` selects the database backend. Use `mysql` for MySQL or `oracle` for Oracle. If `DATABASE_URL` is provided, it overrides the auto-built connection string.
+- `LLM_PROVIDER` selects the AI backend. Use `groq` with `GRAQ_API_KEY` and `GRAQ_MODEL`, or `local` with `LOCAL_LLM_URL` and `LOCAL_LLM_MODEL`.
+- For Oracle, set `DB_PROVIDER=oracle` and provide values such as `DB_HOST`, `DB_PORT`, `DB_NAME`, and `DB_SERVICE`.
+- For a local LLM endpoint such as Ollama, keep `LLM_PROVIDER=local` and point `LOCAL_LLM_URL` to your running service.
+
+### Step 2: Run the Backend (FastAPI)
 1. Open a terminal and navigate to the `backend/` directory:
    ```bash
    cd backend
@@ -59,7 +95,7 @@ Create a database named `fcy_leads` or customize the database connection string 
 
 ---
 
-### Step 2: Run the Frontend (Next.js)
+### Step 3: Run the Frontend (Next.js)
 1. Open a new terminal and navigate to the `frontend/` directory:
    ```bash
    cd frontend

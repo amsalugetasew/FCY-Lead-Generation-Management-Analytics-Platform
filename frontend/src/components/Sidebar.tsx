@@ -1,8 +1,10 @@
 "use client";
+import { createPortal } from "react-dom";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import ChangePasswordForm from "../app/change-password/page";
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -24,6 +26,8 @@ export default function Sidebar() {
   const [user, setUser] = useState<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [avatar, setAvatar] = useState<string | null>(null);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
@@ -53,10 +57,10 @@ export default function Sidebar() {
       roles: ["Admin", "Head Office", "Region", "District", "Branch"]
     },
     {
-      name: "Performance Rankings",
+      name: "Ranking Management",
       href: "/rankings",
       icon: BarChart3,
-      roles: ["Admin", "Head Office", "Region", "District"]
+      roles: ["Admin", "Head Office", "Region", "District", "Branch"]
     },
     {
       name: "Lead Management",
@@ -74,7 +78,7 @@ export default function Sidebar() {
       name: "Reports Export",
       href: "/reports",
       icon: FileSpreadsheet,
-      roles: ["Admin", "Head Office", "Region", "District", "Branch"]
+      roles: ["Admin", "Head Office", "Region", "District"]
     },
     {
       name: "Change Password",
@@ -91,14 +95,24 @@ export default function Sidebar() {
   ];
 
   const handleSignOut = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
     sessionStorage.removeItem("fcy_token");
     localStorage.removeItem("fcy_user");
+    setShowLogoutConfirm(false);
     window.location.href = "/login";
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   if (!user) return null;
 
   return (
+    <>
     <aside 
       className={`${
         isCollapsed ? "w-20" : "w-64"
@@ -142,6 +156,30 @@ export default function Sidebar() {
           const isActive = pathname === item.href;
           
           if (!isAllowed) return null;
+
+          if (item.name === "Change Password") {
+            return (
+              <button
+                key={item.href}
+                type="button"
+                onClick={() => setShowChangePasswordModal(true)}
+                className={`flex w-full items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group text-left ${
+                  isActive
+                    ? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-lg px-4 py-2 transition-colors text-sm font-medium"
+                    : "hover:from-[#CFB53B] hover:to-[#8E288D] hover:text-white hover:bg-gradient-to-r"
+                } ${isCollapsed ? "justify-center px-0" : ""}`}
+                title={isCollapsed ? item.name : ""}
+              >
+                <item.icon 
+                  size={18} 
+                  className={`transition-colors duration-200 flex-shrink-0 ${
+                    isActive ? "text-white" : "text-slate-400 group-hover:text-slate-700"
+                  }`} 
+                />
+                {!isCollapsed && <span className="animate-in fade-in duration-200">{item.name}</span>}
+              </button>
+            );
+          }
 
           return (
             <Link
@@ -225,8 +263,9 @@ export default function Sidebar() {
       {/* Sign Out & Footer */}
       <div className={`p-4 border-t border-slate-200/80 flex flex-col gap-2.5 ${isCollapsed ? "items-center" : ""}`}>
         <button
+        // className="w-full py-2 bg-slate-50 hover:bg-pink-50 text-slate-655 hover:text-pink-500 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
           onClick={handleSignOut}
-          className={`py-2 bg-slate-50 hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-600 hover:text-red-650 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+          className={`w-full py-2 bg-slate-50 hover:bg-pink-50 text-slate-655 hover:text-pink-500 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
             isCollapsed ? "px-2.5" : "w-full"
           }`}
           title={isCollapsed ? "Sign Out" : ""}
@@ -240,6 +279,54 @@ export default function Sidebar() {
           </div>
         )}
       </div>
+
     </aside>
+
+      {/* Logout Confirmation Modal — rendered via portal to escape sidebar stacking context */}
+      {showLogoutConfirm && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4">
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-3">
+                <h2 className="text-xl font-bold text-slate-800">Confirm Sign Out</h2>
+                <p className="text-base text-slate-600">Are you sure you want to sign out?</p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={cancelLogout}
+                  className="flex-1 px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-sm font-semibold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmLogout}
+                  className="flex-1 px-6 py-2.5 bg-pink-400 hover:bg-pink-500 text-white rounded-lg text-sm font-semibold transition cursor-pointer"
+                >
+                  Yes, Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {showChangePasswordModal && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+          onClick={() => setShowChangePasswordModal(false)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-6">
+              <ChangePasswordForm onClose={() => setShowChangePasswordModal(false)} />
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }

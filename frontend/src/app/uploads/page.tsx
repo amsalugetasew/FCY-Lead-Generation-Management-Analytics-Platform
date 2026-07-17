@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
+import AIContextMenu from "@/components/AIContextMenu";
+import AIModal from "@/components/AIModal";
+import AIChatModal from "@/components/AIChatModal";
 import { UploadCloud, FileSpreadsheet, AlertTriangle, AlertCircle, FileText, CheckCircle2, History } from "lucide-react";
 
 export default function ManualUploads() {
@@ -15,6 +18,16 @@ export default function ManualUploads() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<any[]>([]);
+
+  // AI interaction state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean; scope: string } | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiModalTitle, setAiModalTitle] = useState("");
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiChatScope, setAiChatScope] = useState("data_uploads");
+  const [aiChatContext, setAiChatContext] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
@@ -45,6 +58,74 @@ export default function ManualUploads() {
     if (!authReady) return;
     fetchUploadHistory();
   }, [authReady]);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const onClick = () => setContextMenu(null);
+    if (contextMenu?.visible) window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [contextMenu]);
+
+  const openAiForScope = async (scope: string, intent: string = "insights") => {
+    setAiLoading(true);
+    setAiModalTitle(`${intent.charAt(0).toUpperCase() + intent.slice(1)} • ${scope}`);
+    setAiModalOpen(true);
+    setAiResult(null);
+
+    try {
+      const token = sessionStorage.getItem("fcy_token");
+      const res = await fetch(`/api/ai/analysis`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ scope, intent, use_graq: true })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setAiResult({ error: errData?.detail || `AI request failed (${res.status})` });
+      } else {
+        const data = await res.json();
+        setAiResult(data);
+      }
+    } catch (e: any) {
+      setAiResult({ error: e.message });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, scope: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, visible: true, scope });
+  };
+
+  const handleAiOptionSelect = (id: string) => {
+    if (!contextMenu) return;
+    setContextMenu(null);
+    const intentMap: Record<string, string> = {
+      insights: "insights",
+      recommendations: "recommendations",
+      chatbot: "chat",
+      report: "report",
+      overall: "report",
+    };
+    const intent = intentMap[id] || "insights";
+    if (id === "chatbot") {
+      setAiChatScope(contextMenu.scope);
+      setAiChatContext({
+        upload_type: uploadType,
+        user_scope: {
+          level: user?.level,
+          office_type: user?.office_type,
+          region_id: user?.region_id,
+          district_id: user?.district_id,
+          branch_id: user?.branch_id,
+        },
+      });
+      setAiChatOpen(true);
+    } else {
+      openAiForScope(contextMenu.scope, intent);
+    }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -134,7 +215,7 @@ export default function ManualUploads() {
   const hasAccess = user.level === "Head Office" || user.level === "Region";
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8" onContextMenu={(e) => handleContextMenu(e, "data_uploads")}>
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-slate-800 leading-tight">Manual Data Feeds</h2>
@@ -285,7 +366,7 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
           </div>
 
           {/* Right: Upload History Logs */}
-          <div className="lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col max-h-[500px]">
+          <div className="lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 flex flex-col max-h-[500px]" onContextMenu={(e) => handleContextMenu(e, "upload_history_logs")}>
             <h3 className="text-slate-800 font-bold text-sm border-b border-slate-100 pb-3 mb-6 flex items-center gap-2">
               <History size={16} className="text-indigo-650" />
               Upload Logs History
@@ -321,6 +402,25 @@ TXWALK902,Kassa Tessema,800,GBP,CBE3333`}
           </div>
         </div>
       )}
+
+      {/* AI Context Menu */}
+      {contextMenu?.visible && (
+        <AIContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          options={[
+            { id: "insights", label: "Insights" },
+            { id: "recommendations", label: "Recommendations" },
+            { id: "chatbot", label: "Chatbot" },
+            { id: "report", label: "AI Report" },
+          ]}
+          onSelect={handleAiOptionSelect}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      <AIModal open={aiModalOpen} title={aiModalTitle} result={aiLoading ? "Thinking..." : aiResult} onClose={() => setAiModalOpen(false)} />
+      <AIChatModal open={aiChatOpen} title="AI Assistant" scope={aiChatScope} user={user} context={aiChatContext} onClose={() => setAiChatOpen(false)} />
     </div>
   );
 }

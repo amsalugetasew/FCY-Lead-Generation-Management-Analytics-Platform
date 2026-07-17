@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from backend.database import engine, Base, SessionLocal, get_db
 from backend.models import User
 from backend.routes import auth, leads, analytics, uploads, reports
+from backend.routes import ai as ai_routes
 from backend.seed_data import seed_database, should_seed_on_startup
 from fastapi.staticfiles import StaticFiles
 import os
@@ -34,6 +35,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api")
 app.include_router(leads.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
+app.include_router(ai_routes.router, prefix="/api")
 app.include_router(uploads.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 
@@ -60,10 +62,10 @@ def startup_db_initialization():
                 print("No users found in database. Seeding is disabled by default. Set SEED_ON_STARTUP=true to seed once, or run the seed script manually.")
         else:
             try:
-                from backend.database import ensure_avatar_column
-                ensure_avatar_column()
+                from backend.database import ensure_user_columns
+                ensure_user_columns()
             except Exception as e:
-                print(f"Warning: avatar column validation failed: {e}")
+                print(f"Warning: user column validation failed: {e}")
             session.close()
             print("Database already contains data. Ready.")
     except Exception as e:

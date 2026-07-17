@@ -41,6 +41,7 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     position = Column(String(100), nullable=False) # e.g. "Regional Retail Director"
     level = Column(String(50), nullable=False) # "Head Office", "Region", "District", "Branch"
+    office_type = Column(String(50), nullable=True) # e.g. "Branch", "District", "Region", "Head Office"
     avatar_url = Column(String(255), nullable=True)
     
     region_id = Column(Integer, ForeignKey("regions.id"), nullable=True)
@@ -62,6 +63,9 @@ class Customer(Base):
     is_existing_account_holder = Column(Boolean, nullable=False, default=True)
     email = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
+    ranking_score = Column(Float, nullable=True, default=0.0)
+    ranking_label = Column(String(50), nullable=True)
+    ranking_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     
     transactions = relationship("Transaction", back_populates="customer")

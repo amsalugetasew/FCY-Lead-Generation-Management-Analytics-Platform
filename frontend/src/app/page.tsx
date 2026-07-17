@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import AnalyticsCharts from "@/components/AnalyticsCharts";
+import AIContextMenu from "@/components/AIContextMenu";
+import AIModal from "@/components/AIModal";
+import AIChatModal from "@/components/AIChatModal";
 import { 
   TrendingUp, 
   Users, 
@@ -38,6 +41,17 @@ export default function Dashboard() {
   const [trends, setTrends] = useState<any[]>([]);
   const [trendView, setTrendView] = useState("monthly");
   const [loading, setLoading] = useState(true);
+  // AI context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; visible: boolean; scope: string } | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiModalTitle, setAiModalTitle] = useState("");
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [aiChatScope, setAiChatScope] = useState("dashboard_charts");
+  const [aiChatContext, setAiChatContext] = useState<Record<string, any>>({});
+  const isBranchScopedUser = user?.level === "Branch" || user?.office_type === "Branch";
+  const isGeoScopedUser = user?.level === "Region" || user?.level === "District" || user?.office_type === "Region" || user?.office_type === "District";
 
   useEffect(() => {
     const userStr = localStorage.getItem("fcy_user");
@@ -48,12 +62,12 @@ export default function Dashboard() {
       setUser(u);
       
       // Auto lock geographical selections based on user scope
-      if (u.level === "Region") {
+      if (u.level === "Region" || u.office_type === "Region") {
         setSelectedRegion(String(u.region_id));
-      } else if (u.level === "District") {
+      } else if (u.level === "District" || u.office_type === "District") {
         setSelectedRegion(String(u.region_id));
         setSelectedDistrict(String(u.district_id));
-      } else if (u.level === "Branch") {
+      } else if (u.level === "Branch" || u.office_type === "Branch") {
         setSelectedRegion(String(u.region_id));
         setSelectedDistrict(String(u.district_id));
         setSelectedBranch(String(u.branch_id));
@@ -128,11 +142,15 @@ export default function Dashboard() {
     if (!token) return;
     setLoading(true);
     try {
+      const effectiveRegion = isGeoScopedUser && user?.region_id ? String(user.region_id) : selectedRegion;
+      const effectiveDistrict = isGeoScopedUser && user?.district_id ? String(user.district_id) : selectedDistrict;
+      const effectiveBranch = isBranchScopedUser && user?.branch_id ? String(user.branch_id) : selectedBranch;
+
       // 1. Build Query Parameters
       const params = new URLSearchParams();
-      if (selectedRegion) params.append("region_id", selectedRegion);
-      if (selectedDistrict) params.append("district_id", selectedDistrict);
-      if (selectedBranch) params.append("branch_id", selectedBranch);
+      if (effectiveRegion) params.append("region_id", effectiveRegion);
+      if (effectiveDistrict) params.append("district_id", effectiveDistrict);
+      if (effectiveBranch) params.append("branch_id", effectiveBranch);
       if (selectedCurrency) params.append("currency", selectedCurrency);
       if (selectedProduct) params.append("product_type", selectedProduct);
       if (startDate) params.append("start_date", startDate);
@@ -150,9 +168,9 @@ export default function Dashboard() {
       // 3. Fetch Trend Data Chart
       const trendParams = new URLSearchParams();
       trendParams.append("view_type", trendView);
-      if (selectedRegion) trendParams.append("region_id", selectedRegion);
-      if (selectedDistrict) trendParams.append("district_id", selectedDistrict);
-      if (selectedBranch) trendParams.append("branch_id", selectedBranch);
+      if (effectiveRegion) trendParams.append("region_id", effectiveRegion);
+      if (effectiveDistrict) trendParams.append("district_id", effectiveDistrict);
+      if (effectiveBranch) trendParams.append("branch_id", effectiveBranch);
       
       const trendsRes = await fetch(`/api/analytics/trends?${trendParams.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
@@ -184,6 +202,83 @@ export default function Dashboard() {
     trendView
   ]);
 
+  // Close context menu on outside click
+  useEffect(() => {
+    const onClick = () => setContextMenu(null);
+    if (contextMenu?.visible) window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [contextMenu]);
+
+  const openAiForScope = async (scope: string, intent: string = "insights") => {
+    setAiLoading(true);
+    setAiModalTitle(`${intent.charAt(0).toUpperCase() + intent.slice(1)} • ${scope}`);
+    setAiModalOpen(true);
+    setAiResult(null);
+
+    try {
+      const token = sessionStorage.getItem("fcy_token");
+      const res = await fetch(`/api/ai/analysis`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ scope, intent, use_graq: true })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setAiResult({ error: errData?.detail || `AI request failed (${res.status})` });
+      } else {
+        const data = await res.json();
+        setAiResult(data);
+      }
+    } catch (e: any) {
+      setAiResult({ error: e.message });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, scope: string) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, visible: true, scope });
+  };
+
+  const handleAiOptionSelect = (id: string) => {
+    if (!contextMenu) return;
+    setContextMenu(null);
+    // Map id to intent
+    const intentMap: Record<string, string> = {
+      insights: "insights",
+      recommendations: "recommendations",
+      chatbot: "chat",
+      report: "report",
+      overall: "report",
+    };
+    const intent = intentMap[id] || "insights";
+    if (id === "chatbot") {
+      setAiChatScope(contextMenu.scope);
+      setAiChatContext({
+        filters: {
+          region_id: selectedRegion || undefined,
+          district_id: selectedDistrict || undefined,
+          branch_id: selectedBranch || undefined,
+          currency: selectedCurrency || undefined,
+          product_type: selectedProduct || undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+        },
+        user_scope: {
+          level: user?.level,
+          office_type: user?.office_type,
+          region_id: user?.region_id,
+          district_id: user?.district_id,
+          branch_id: user?.branch_id,
+        },
+      });
+      setAiChatOpen(true);
+    } else {
+      openAiForScope(contextMenu.scope, intent);
+    }
+  };
+
   if (!authReady) {
     return (
       <div className="flex items-center justify-center h-[70vh]">
@@ -195,6 +290,63 @@ export default function Dashboard() {
   // Guard: if no user in state, don't render (ClientLayoutWrapper will redirect)
   if (!user) return null;
 
+  if (isBranchScopedUser) {
+    const branchName = hierarchy
+      .flatMap((region: any) => region.districts || [])
+      .flatMap((district: any) => district.branches || [])
+      .find((branch: any) => String(branch.id) === String(user?.branch_id))?.name || "your assigned branch";
+
+    return (
+      <div className="flex flex-col gap-8" onContextMenu={(e) => handleContextMenu(e, "branch_dashboard")}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex flex-col-2 gap-1">
+            <h2 className="text-2xl font-bold text-slate-800 leading-tight">Branch Dashboard</h2>
+            <p className="text-slate-500 text-sm mt-1">
+              Showing activity and performance for <span className="font-semibold text-[#8E288D]">{branchName}</span>.
+            </p>
+          </div>
+          <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            Branch scope locked
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-sm text-slate-600">
+            This view is filtered to the selected branch and does not show multi-branch filters or aggregate comparisons.
+          </p>
+        </div>
+
+        <div onContextMenu={(e) => handleContextMenu(e, "branch_dashboard_charts")}>
+          <AnalyticsCharts stats={stats} trends={trends} loading={loading} />
+        </div>
+
+        {contextMenu?.visible && (
+          <AIContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            options={[
+              { id: "insights", label: "Insights" },
+              { id: "recommendations", label: "Recommendations" },
+              { id: "chatbot", label: "Chatbot" },
+              { id: "report", label: "Export Report" },
+            ]}
+            onSelect={handleAiOptionSelect}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
+
+        <AIModal open={aiModalOpen} title={aiModalTitle} result={aiLoading ? "Thinking..." : aiResult} onClose={() => setAiModalOpen(false)} />
+        <AIChatModal open={aiChatOpen} title="AI Assistant" scope={aiChatScope} user={user} context={aiChatContext} onClose={() => setAiChatOpen(false)} />
+      </div>
+    );
+  }
+
+  const scopeLabel = isGeoScopedUser
+    ? (user?.level === "District" || user?.office_type === "District"
+        ? "District scope locked"
+        : "Region scope locked")
+    : "Full analytics access";
+
   return (
     <div className="flex flex-col gap-8">
       {/* Page Header */}
@@ -203,6 +355,11 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-slate-800 leading-tight mr-3">Executive Dashboard</h2>
           <p className="text-slate-500 text-xs mt-2">Real-time foreign currency (FCY) mobilization summaries & lead conversion audits.</p>
         </div>
+        {isGeoScopedUser && (
+          <div className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+            {scopeLabel}
+          </div>
+        )}
         <button
           onClick={fetchDashboardData}
           className="px-4 py-2 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-xl px-4 py-2 hover:from-[#CFB53B] hover:to-[#8E288D] transition-colors text-sm font-medium text-xs font-semibold shadow-md shadow-indigo-600/10 transition duration-150 ease-in-out cursor-pointer self-start md:self-auto"
@@ -223,7 +380,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Region</label>
             <select
-              disabled={user.level !== "Head Office"}
+              disabled={user.level !== "Head Office" && user.office_type !== "Head Office"}
               value={selectedRegion}
               onChange={(e) => setSelectedRegion(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-60">
@@ -238,7 +395,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">District</label>
             <select
-              disabled={user.level === "District" || user.level === "Branch" || !selectedRegion}
+              disabled={(user.level === "District" || user.level === "Branch" || user.office_type === "District" || user.office_type === "Branch") || !selectedRegion}
               value={selectedDistrict}
               onChange={(e) => setSelectedDistrict(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
@@ -254,7 +411,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Branch</label>
             <select
-              disabled={user.level === "Branch" || !selectedDistrict}
+              disabled={(user.level === "Branch" || user.office_type === "Branch") || !selectedDistrict}
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:opacity-60"
@@ -478,8 +635,29 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
-          
-          <AnalyticsCharts trendData={trends} />
+          <div onContextMenu={(e) => handleContextMenu(e, "dashboard_charts") }>
+            <AnalyticsCharts stats={stats} trends={trends} loading={loading} />
+          </div>
+
+          {contextMenu?.visible && (
+            <AIContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              options={[
+                { id: "insights", label: "Insights" },
+                { id: "recommendations", label: "Recommendations" },
+                { id: "chatbot", label: "Chatbot" },
+                { id: "report", label: "Export Report" },
+              ]}
+              onSelect={handleAiOptionSelect}
+              onClose={() => setContextMenu(null)}
+            />
+          )}
+
+          <AIModal open={aiModalOpen} title={aiModalTitle} result={aiLoading ? "Thinking..." : aiResult} onClose={() => setAiModalOpen(false)} />
+          <AIChatModal open={aiChatOpen} title="AI Assistant" scope={aiChatScope} user={user} context={aiChatContext} onClose={() => setAiChatOpen(false)} />
+
+          {/* <AnalyticsCharts stats={stats} trends={trends} loading={loading} /> */}
         </div>
       )}
     </div>

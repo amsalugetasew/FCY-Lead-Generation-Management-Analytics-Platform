@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CBE FCY Lead Mobilization",
+  title: "FCY Lead Mobilization",
   description: "Retail Banking Foreign Currency Lead Generation, Tracking, and Analytics Engine.",
 };
 

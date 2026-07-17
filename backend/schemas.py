@@ -11,6 +11,7 @@ class Token(BaseModel):
     full_name: str
     position: str
     level: str
+    office_type: Optional[str] = None
     avatar_url: Optional[str] = None
     region_id: Optional[int] = None
     district_id: Optional[int] = None
@@ -19,6 +20,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
     level: Optional[str] = None
+    office_type: Optional[str] = None
     region_id: Optional[int] = None
     district_id: Optional[int] = None
     branch_id: Optional[int] = None
@@ -33,6 +35,7 @@ class UserCreate(BaseModel):
     full_name: str
     position: str
     level: str
+    office_type: Optional[str] = None
     region_id: Optional[int] = None
     district_id: Optional[int] = None
     branch_id: Optional[int] = None
@@ -43,6 +46,7 @@ class UserResponse(BaseModel):
     full_name: str
     position: str
     level: str
+    office_type: Optional[str] = None
     avatar_url: Optional[str] = None
     region_id: Optional[int] = None
     district_id: Optional[int] = None
@@ -55,6 +59,7 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     position: Optional[str] = None
     level: Optional[str] = None
+    office_type: Optional[str] = None
     password: Optional[str] = None
     region_id: Optional[int] = None
     district_id: Optional[int] = None
@@ -100,7 +105,26 @@ class CustomerResponse(BaseModel):
     is_existing_account_holder: bool
     email: Optional[str] = None
     phone: Optional[str] = None
+    ranking_score: Optional[float] = None
+    ranking_label: Optional[str] = None
+    ranking_notes: Optional[str] = None
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class CustomerRankingUpdate(BaseModel):
+    ranking_score: Optional[float] = None
+    ranking_label: Optional[str] = None
+    ranking_notes: Optional[str] = None
+
+class CustomerRankingResponse(BaseModel):
+    customer_id: int
+    customer_name: str
+    branch_id: Optional[int] = None
+    ranking_score: Optional[float] = None
+    ranking_label: Optional[str] = None
+    ranking_notes: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -158,6 +182,8 @@ class LeadResponse(BaseModel):
     recommended_action: Optional[str] = None
     assigned_branch_id: int
     branch_name: Optional[str] = None
+    district_name: Optional[str] = None
+    region_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     follow_ups: List[FollowUpResponse] = []
@@ -203,7 +229,11 @@ class TrendPoint(BaseModel):
     converted_count: int
 
 class RankPoint(BaseModel):
+    id: Optional[int] = None
     name: str # Branch, District or Region name
+    branch_name: Optional[str] = None
+    district_name: Optional[str] = None
+    region_name: Optional[str] = None
     volume: float
     leads_count: int
     conversion_rate: float
