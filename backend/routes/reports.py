@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import User, Lead, Branch, Transaction, Customer, District, Region
+from backend.models import User, Lead, Transaction, Customer
 from backend import crud, auth
 from typing import Optional
 import io
@@ -22,9 +22,9 @@ router = APIRouter(prefix="/reports", tags=["Data Export & Reports"], redirect_s
 def download_report(
     report_type: str = Query(..., description="The type of report: monthly-leads, quarterly-conversion, district-performance, receiver-vs-sender, partnership, acquisition, loan-potential"),
     format: str = Query("csv", description="Export format: csv, excel, pdf"),
-    region_id: Optional[int] = None,
-    district_id: Optional[int] = None,
-    branch_id: Optional[int] = None,
+    region: Optional[str] = None,
+    district: Optional[str] = None,
+    branch: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
 ):
@@ -50,22 +50,22 @@ def download_report(
     tx_query = db.query(Transaction)
     tx_query = crud.apply_rbac_filter(tx_query, current_user, Transaction)
 
-    if region_id:
-        leads_query = leads_query.join(Branch, Lead.assigned_branch_id == Branch.id).join(District, Branch.district_id == District.id).filter(District.region_id == region_id)
-        tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id).join(District, Branch.district_id == District.id).filter(District.region_id == region_id)
-    elif district_id:
-        leads_query = leads_query.join(Branch, Lead.assigned_branch_id == Branch.id).filter(Branch.district_id == district_id)
-        tx_query = tx_query.join(Branch, Transaction.branch_id == Branch.id).filter(Branch.district_id == district_id)
-    elif branch_id:
-        leads_query = leads_query.filter(Lead.assigned_branch_id == branch_id)
-        tx_query = tx_query.filter(Transaction.branch_id == branch_id)
+    if region:
+        leads_query = leads_query.filter(Lead.region == region)
+        tx_query = tx_query.filter(Transaction.region == region)
+    elif district:
+        leads_query = leads_query.filter(Lead.district == district)
+        tx_query = tx_query.filter(Transaction.district == district)
+    elif branch:
+        leads_query = leads_query.filter(Lead.branch == branch)
+        tx_query = tx_query.filter(Transaction.branch == branch)
 
     if report_type == "monthly-leads":
         title = "Monthly FCY Leads Generation Report"
         headers = ["Lead ID", "Customer Name", "Lead Type", "Category", "Status", "Priority", "FCY Volume (USD)", "Frequency", "Assigned Branch"]
         leads = leads_query.filter(Lead.created_at >= datetime.utcnow() - timedelta(days=30)).all()
         for l in leads:
-            b_name = l.assigned_branch.name if l.assigned_branch else "Unknown"
+            b_name = l.branch if l.branch else "Unknown"
             data.append([l.id, l.customer_name, l.lead_type, l.category, l.status, l.priority, round(l.usd_volume, 2), l.frequency, b_name])
 
     elif report_type == "quarterly-conversion":
@@ -73,7 +73,7 @@ def download_report(
         headers = ["Lead ID", "Customer Name", "Lead Type", "Category", "Status", "Volume (USD)", "Assigned Branch", "Follow-up Updates"]
         leads = leads_query.filter(Lead.created_at >= datetime.utcnow() - timedelta(days=90)).all()
         for l in leads:
-            b_name = l.assigned_branch.name if l.assigned_branch else "Unknown"
+            b_name = l.branch if l.branch else "Unknown"
             notes = l.follow_ups[-1].notes if l.follow_ups else "No follow-up action registered yet"
             data.append([l.id, l.customer_name, l.lead_type, l.category, l.status, round(l.usd_volume, 2), b_name, notes])
 
@@ -81,22 +81,24 @@ def download_report(
         title = "District Retail Performance Dashboard Summary"
         headers = ["District Name", "Region", "Total Transactions", "Total USD Volume", "Leads Generated", "Leads Converted", "Conversion Rate (%)"]
         
-        # Get all districts
-        districts = db.query(District).all()
+        # Get all distinct district and region pairs
+        districts = db.query(Lead.district, Lead.region).filter(Lead.district.isnot(None)).distinct().all()
         for d in districts:
+            d_name = d[0]
+            r_name = d[1]
             # check RBAC level permissions
-            if current_user.level == "Region" and d.region_id != current_user.region_id:
+            if current_user.level == "Region" and r_name != current_user.region:
                 continue
-            if current_user.level == "District" and d.id != current_user.district_id:
+            if current_user.level == "District" and d_name != current_user.district:
                 continue
                 
-            tx_count = db.query(Transaction).join(Branch).filter(Branch.district_id == d.id).count()
-            tx_vol = db.query(Transaction).join(Branch).filter(Branch.district_id == d.id).with_entities(crud.func.sum(Transaction.usd_equivalent)).scalar() or 0.0
-            leads_cnt = db.query(Lead).join(Branch).filter(Branch.district_id == d.id).count()
-            converted = db.query(Lead).join(Branch).filter(Branch.district_id == d.id, Lead.status == "Converted").count()
+            tx_count = db.query(Transaction).filter(Transaction.district == d_name).count()
+            tx_vol = db.query(Transaction).filter(Transaction.district == d_name).with_entities(crud.func.sum(Transaction.usd_equivalent)).scalar() or 0.0
+            leads_cnt = db.query(Lead).filter(Lead.district == d_name).count()
+            converted = db.query(Lead).filter(Lead.district == d_name, Lead.status == "Converted").count()
             conv_rate = round((converted / leads_cnt * 100), 2) if leads_cnt > 0 else 0.0
             
-            data.append([d.name, d.region.name, tx_count, round(tx_vol, 2), leads_cnt, converted, conv_rate])
+            data.append([d_name, r_name, tx_count, round(tx_vol, 2), leads_cnt, converted, conv_rate])
 
     elif report_type == "receiver-vs-sender":
         title = "Receiver vs Sender Analysis"
@@ -122,7 +124,7 @@ def download_report(
         headers = ["Walk-in Customer Name", "Total Exchange Inflow (USD)", "Frequency", "Assigned Branch", "Recommended Action"]
         leads = leads_query.filter(Lead.lead_type == "FCY Exchange").all()
         for l in leads:
-            b_name = l.assigned_branch.name if l.assigned_branch else "Unknown"
+            b_name = l.branch if l.branch else "Unknown"
             data.append([l.customer_name, round(l.usd_volume, 2), l.frequency, b_name, l.recommended_action])
 
     elif report_type == "loan-potential":
@@ -130,7 +132,7 @@ def download_report(
         headers = ["Customer Name", "Total FCY Volume (USD)", "Frequency", "Assigned Branch", "Marketing Action"]
         leads = leads_query.filter(Lead.category == "High Value Customer").all()
         for l in leads:
-            b_name = l.assigned_branch.name if l.assigned_branch else "Unknown"
+            b_name = l.branch if l.branch else "Unknown"
             data.append([l.customer_name, round(l.usd_volume, 2), l.frequency, b_name, "Promote Priority Banking / FCY Loans"])
             
     else:

@@ -36,6 +36,7 @@ export default function Leads() {
 
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [followupPage, setFollowupPage] = useState(1);
   const [newStatus, setNewStatus] = useState("");
   const [actionTaken, setActionTaken] = useState("");
   const [followupNotes, setFollowupNotes] = useState("");
@@ -268,6 +269,7 @@ export default function Leads() {
 
   const openLeadDetailModal = (lead: any) => {
     setSelectedLead(lead);
+    setFollowupPage(1);
     setDetailModalOpen(true);
   };
 
@@ -475,12 +477,21 @@ export default function Leads() {
                   {paginatedLeads.map((lead) => (
                     <tr key={lead.id} className="hover:bg-slate-50 transition group">
                       <td className="py-4">
-                        <Link href={`/leads/${lead.id}`} className="font-semibold text-slate-800 hover:text-indigo-600 flex flex-col">
+                        <button
+                          type="button"
+                          onClick={() => openLeadDetailModal(lead)}
+                          className="text-left font-semibold text-slate-800 hover:text-indigo-600 flex flex-col focus:outline-none cursor-pointer"
+                        >
                           <span>{lead.customer_name}</span>
                           <span className="text-[9px] text-slate-400 font-semibold mt-0.5">ID: #{lead.id}</span>
-                        </Link>
+                        </button>
                       </td>
-                      <td className="py-4"><span className="text-slate-500 font-medium">{lead.lead_type}</span></td>
+                      <td className="py-4">
+                        <div className="flex flex-col">
+                          <span className="text-slate-700 font-semibold">{lead.lead_type}</span>
+                          <span className="text-[10px] text-indigo-600 font-bold">{lead.task_type || "Conversion"}</span>
+                        </div>
+                      </td>
                       <td className="py-4"><span className="text-slate-500 font-medium">{lead.category}</span></td>
                       <td className="py-4">
                         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-bold border ${getPriorityColor(lead.priority)}`}>
@@ -606,8 +617,12 @@ export default function Leads() {
                   <p className="mt-1 font-semibold text-slate-800">#{selectedLead.id}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Type</p>
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Lead Type</p>
                   <p className="mt-1 font-semibold text-slate-800">{selectedLead.lead_type}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Task Type</p>
+                  <p className="mt-1 font-semibold text-indigo-700">{selectedLead.task_type || "Conversion"}</p>
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Category</p>
@@ -691,6 +706,78 @@ export default function Leads() {
                 )}
 
                 {rankingError && <p className="mt-3 text-xs text-red-600">{rankingError}</p>}
+              </div>
+
+              {/* Follow-Up History Section */}
+              <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                  <p className="text-[10px] uppercase font-bold tracking-wider text-slate-500">Follow-Up History & Tracking Log</p>
+                  <span className="bg-slate-200 text-slate-700 text-[10px] px-2 py-0.5 rounded-md font-bold">
+                    {selectedLead.follow_ups?.length || 0} Records
+                  </span>
+                </div>
+                {selectedLead.follow_ups && selectedLead.follow_ups.length > 0 ? (
+                  <>
+                    <div className="divide-y divide-slate-100">
+                      {selectedLead.follow_ups
+                        .slice((followupPage - 1) * 3, followupPage * 3)
+                        .map((fup: any, idx: number) => (
+                          <div key={fup.id || idx} className="p-4 flex flex-col gap-2 hover:bg-slate-50/50 transition">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold tracking-wide uppercase">
+                                  {fup.action_taken}
+                                </span>
+                                <span className="ml-2 text-xs font-semibold text-slate-700">
+                                  {new Date(fup.created_at).toLocaleString()}
+                                </span>
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-400">
+                                {fup.user?.username || "System"}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status updated to:</span>
+                              <span className="text-[11px] font-bold text-slate-800">{fup.new_status}</span>
+                            </div>
+                            {fup.notes && (
+                              <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg mt-1 border border-slate-100">
+                                {fup.notes}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                    {/* Follow-up Pagination */}
+                    {selectedLead.follow_ups.length > 3 && (
+                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-slate-500">
+                          Showing {(followupPage - 1) * 3 + 1} to {Math.min(followupPage * 3, selectedLead.follow_ups.length)} of {selectedLead.follow_ups.length}
+                        </span>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setFollowupPage(Math.max(1, followupPage - 1))}
+                            disabled={followupPage === 1}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded bg-white border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer"
+                          >
+                            Prev
+                          </button>
+                          <button
+                            onClick={() => setFollowupPage(Math.min(Math.ceil(selectedLead.follow_ups.length / 3), followupPage + 1))}
+                            disabled={followupPage === Math.ceil(selectedLead.follow_ups.length / 3)}
+                            className="px-2.5 py-1 text-[11px] font-bold rounded bg-white border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 transition cursor-pointer"
+                          >
+                            Next
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="p-6 text-center text-xs text-slate-400">
+                    No follow-ups recorded yet.
+                  </div>
+                )}
               </div>
             </div>
           </div>

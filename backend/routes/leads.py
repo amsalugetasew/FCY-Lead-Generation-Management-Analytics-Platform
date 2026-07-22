@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import User, Branch
+from backend.models import User
 from backend import crud, schemas, auth
 from backend.lead_generator import trigger_lead_generation
 from typing import List, Optional
@@ -10,9 +10,9 @@ router = APIRouter(prefix="/leads", tags=["Lead Management"], redirect_slashes=F
 
 @router.get("", response_model=List[schemas.LeadResponse])
 def read_leads(
-    region_id: Optional[int] = None,
-    district_id: Optional[int] = None,
-    branch_id: Optional[int] = None,
+    region: Optional[str] = None,
+    district: Optional[str] = None,
+    branch: Optional[str] = None,
     lead_type: Optional[str] = None,
     category: Optional[str] = None,
     status: Optional[str] = None,
@@ -26,9 +26,9 @@ def read_leads(
     leads = crud.get_leads(
         db,
         user=current_user,
-        region_id=region_id,
-        district_id=district_id,
-        branch_id=branch_id,
+        region=region,
+        district=district,
+        branch=branch,
         lead_type=lead_type,
         category=category,
         status=status,
@@ -42,18 +42,6 @@ def read_leads(
     results = []
     for lead in leads:
         lead_res = schemas.LeadResponse.model_validate(lead)
-        # Fetch branch name
-        branch = db.query(Branch).filter(Branch.id == lead.assigned_branch_id).first()
-        lead_res.branch_name = branch.name if branch else "Unknown Branch"
-        # Attach district and region names when possible
-        if branch:
-            district = db.query(DB:=__import__('backend').models.District).filter(DB.id == branch.district_id).first()
-            if district:
-                lead_res.district_name = district.name
-                region = db.query(DB2:=__import__('backend').models.Region).filter(DB2.id == district.region_id).first()
-                if region:
-                    lead_res.region_name = region.name
-        
         # Attach follow-ups user names
         for fu_res, fu_model in zip(lead_res.follow_ups, lead.follow_ups):
             fu_res.user_name = fu_model.user.full_name if fu_model.user else "Unknown User"
@@ -76,15 +64,6 @@ def read_lead(
         )
     
     lead_res = schemas.LeadResponse.model_validate(lead)
-    branch = db.query(Branch).filter(Branch.id == lead.assigned_branch_id).first()
-    lead_res.branch_name = branch.name if branch else "Unknown Branch"
-    if branch:
-        district = db.query(__import__('backend').models.District).filter(__import__('backend').models.District.id == branch.district_id).first()
-        if district:
-            lead_res.district_name = district.name
-            region = db.query(__import__('backend').models.Region).filter(__import__('backend').models.Region.id == district.region_id).first()
-            if region:
-                lead_res.region_name = region.name
     
     for fu_res, fu_model in zip(lead_res.follow_ups, lead.follow_ups):
         fu_res.user_name = fu_model.user.full_name if fu_model.user else "Unknown User"

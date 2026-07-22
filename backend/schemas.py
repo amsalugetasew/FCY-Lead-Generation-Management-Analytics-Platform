@@ -13,17 +13,17 @@ class Token(BaseModel):
     level: str
     office_type: Optional[str] = None
     avatar_url: Optional[str] = None
-    region_id: Optional[int] = None
-    district_id: Optional[int] = None
-    branch_id: Optional[int] = None
+    region: Optional[str] = None
+    district: Optional[str] = None
+    branch: Optional[str] = None
 
 class TokenData(BaseModel):
     username: Optional[str] = None
     level: Optional[str] = None
     office_type: Optional[str] = None
-    region_id: Optional[int] = None
-    district_id: Optional[int] = None
-    branch_id: Optional[int] = None
+    region: Optional[str] = None
+    district: Optional[str] = None
+    branch: Optional[str] = None
 
 class UserLogin(BaseModel):
     username: str
@@ -36,9 +36,9 @@ class UserCreate(BaseModel):
     position: str
     level: str
     office_type: Optional[str] = None
-    region_id: Optional[int] = None
-    district_id: Optional[int] = None
-    branch_id: Optional[int] = None
+    region: Optional[str] = None
+    district: Optional[str] = None
+    branch: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -48,9 +48,9 @@ class UserResponse(BaseModel):
     level: str
     office_type: Optional[str] = None
     avatar_url: Optional[str] = None
-    region_id: Optional[int] = None
-    district_id: Optional[int] = None
-    branch_id: Optional[int] = None
+    region: Optional[str] = None
+    district: Optional[str] = None
+    branch: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -61,50 +61,62 @@ class UserUpdate(BaseModel):
     level: Optional[str] = None
     office_type: Optional[str] = None
     password: Optional[str] = None
-    region_id: Optional[int] = None
-    district_id: Optional[int] = None
-    branch_id: Optional[int] = None
+    region: Optional[str] = None
+    district: Optional[str] = None
+    branch: Optional[str] = None
 
 class PasswordChange(BaseModel):
     old_password: str
     new_password: str
 
-# Geography Schemas
+# Geographic Hierarchy Schemas
 class BranchResponse(BaseModel):
-    id: int
+    id: str
     name: str
-    code: str
-    district_id: int
-
-    class Config:
-        from_attributes = True
 
 class DistrictResponse(BaseModel):
-    id: int
+    id: str
     name: str
-    region_id: int
     branches: List[BranchResponse] = []
 
-    class Config:
-        from_attributes = True
-
 class RegionResponse(BaseModel):
-    id: int
+    id: str
     name: str
     districts: List[DistrictResponse] = []
 
-    class Config:
-        from_attributes = True
 
 # Customer Schemas
 class CustomerResponse(BaseModel):
     id: int
     customer_number: Optional[str] = None
     name: str
+    gender: Optional[str] = None
+    date_of_birth: Optional[datetime] = None
+    age: Optional[float] = None
+    nationality: Optional[str] = None
+    country_of_residence: Optional[str] = None
+    customer_segment: Optional[str] = None
     customer_type: str
+    occupation: Optional[str] = None
+    employer_name: Optional[str] = None
+    country_of_employment: Optional[str] = None
     is_existing_account_holder: bool
     email: Optional[str] = None
     phone: Optional[str] = None
+    address: Optional[str] = None
+    region: Optional[str] = None
+    district: Optional[str] = None
+    branch: Optional[str] = None
+    account_number: Optional[str] = None
+    account_type: Optional[str] = None
+    account_status: Optional[str] = None
+    account_opening_date: Optional[datetime] = None
+    account_age: Optional[float] = None
+    account_currency: Optional[str] = None
+    debit_account: Optional[str] = None
+    credit_account: Optional[str] = None
+    passport_number: Optional[str] = None
+    national_id: Optional[str] = None
     ranking_score: Optional[float] = None
     ranking_label: Optional[str] = None
     ranking_notes: Optional[str] = None
@@ -121,7 +133,7 @@ class CustomerRankingUpdate(BaseModel):
 class CustomerRankingResponse(BaseModel):
     customer_id: int
     customer_name: str
-    branch_id: Optional[int] = None
+    branch: Optional[str] = None
     ranking_score: Optional[float] = None
     ranking_label: Optional[str] = None
     ranking_notes: Optional[str] = None
@@ -134,17 +146,34 @@ class TransactionResponse(BaseModel):
     id: int
     customer_id: Optional[int] = None
     reference_number: str
+    account_number: Optional[str] = None
+    lead_type: Optional[str] = None
     channel: str
     transaction_type: str
+    product_type: Optional[str] = None
     amount: float
     currency: str
     exchange_rate: float
     usd_equivalent: float
+    fcy_amount: Optional[float] = None
+    amount_in_birr: Optional[float] = None
+    outgoing_remittance_amount: Optional[float] = None
     sender_name: Optional[str] = None
     sender_organization: Optional[str] = None
     receiver_name: Optional[str] = None
     timestamp: datetime
-    branch_id: int
+    last_transaction_date: Optional[datetime] = None
+    transaction_timing: Optional[int] = None
+    login_ip_address: Optional[str] = None
+    device_id: Optional[str] = None
+    device_type: Optional[str] = None
+    login_country: Optional[str] = None
+    mobile_app_usage: Optional[str] = None
+    internet_banking_user: Optional[str] = None
+    relationship_to_sender: Optional[str] = None
+    region: Optional[str] = None
+    district: Optional[str] = None
+    branch: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -174,16 +203,16 @@ class LeadResponse(BaseModel):
     customer_id: Optional[int] = None
     customer_name: str
     lead_type: str
+    task_type: Optional[str] = None
     category: str
     status: str
     priority: str
     usd_volume: float
     frequency: int
     recommended_action: Optional[str] = None
-    assigned_branch_id: int
-    branch_name: Optional[str] = None
-    district_name: Optional[str] = None
-    region_name: Optional[str] = None
+    branch: Optional[str] = None
+    district: Optional[str] = None
+    region: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     follow_ups: List[FollowUpResponse] = []
@@ -229,7 +258,7 @@ class TrendPoint(BaseModel):
     converted_count: int
 
 class RankPoint(BaseModel):
-    id: Optional[int] = None
+    id: Optional[str] = None # We will use the string name as the id
     name: str # Branch, District or Region name
     branch_name: Optional[str] = None
     district_name: Optional[str] = None
@@ -237,3 +266,20 @@ class RankPoint(BaseModel):
     volume: float
     leads_count: int
     conversion_rate: float
+
+class TrackingRow(BaseModel):
+    entity_id: str
+    entity_name: str
+    entity_type: str  # "region", "district", "branch"
+    parent_name: Optional[str] = None
+    parent_id: Optional[str] = None  # for grouping branches under districts
+    total_leads: int
+    assigned: int
+    in_progress: int
+    contacted: int
+    converted: int
+    lost: int
+    reassigned: int
+    conversion_rate: float
+    fcy_volume: float
+    task_type_breakdown: dict = {}  # e.g. {"Account Opening": 12, "Cross-Selling": 5}

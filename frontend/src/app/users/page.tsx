@@ -271,9 +271,9 @@ export default function UserManagement() {
     }
 
     const levelGeoMapping = {
-      region_id: (regLevel !== "Head Office" && regLevel !== "Admin") && regRegionId ? parseInt(regRegionId) : null,
-      district_id: (regLevel === "District" || regLevel === "Branch") && regDistrictId ? parseInt(regDistrictId) : null,
-      branch_id: regLevel === "Branch" && regBranchId ? parseInt(regBranchId) : null
+      region: (regLevel !== "Head Office" && regLevel !== "Admin") && regRegionId ? regRegionId : null,
+      district: (regLevel === "District" || regLevel === "Branch") && regDistrictId ? regDistrictId : null,
+      branch: regLevel === "Branch" && regBranchId ? regBranchId : null
     };
 
     try {

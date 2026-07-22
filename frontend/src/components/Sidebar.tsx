@@ -17,7 +17,8 @@ import {
   Lock,
   ChevronLeft,
   ChevronRight,
-  User
+  User,
+  Target
 } from "lucide-react";
 import Image from "next/image";
 import iconImage from "../assets/CBE_Logo.png";
@@ -60,6 +61,12 @@ export default function Sidebar() {
       name: "Ranking Management",
       href: "/rankings",
       icon: BarChart3,
+      roles: ["Admin", "Head Office", "Region", "District", "Branch"]
+    },
+    {
+      name: "Follow-Up & Tracking",
+      href: "/tracking",
+      icon: Target,
       roles: ["Admin", "Head Office", "Region", "District", "Branch"]
     },
     {
@@ -136,7 +143,7 @@ export default function Sidebar() {
         {!isCollapsed && (
           <div>
         <div className="p-2 text-white">
-          <Image src={iconImage} alt="FCY Lead Genration" className="w-40 h-24" />
+          <Image src={iconImage} alt="FCY Lead Genration" className="w-40 h-24" priority />
         </div>
         
           <div className="flex flex-col animate-in fade-in duration-200">

@@ -48,9 +48,6 @@ export default function RoleSelector() {
       } catch (e) {
         localStorage.removeItem("fcy_user");
       }
-    } else {
-      // Auto login as headoffice initially if not logged in
-      handleRoleSwitch("headoffice");
     }
 
     // Load saved avatar for this user if any (store per-user to avoid overwriting)

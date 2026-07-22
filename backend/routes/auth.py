@@ -46,9 +46,9 @@ def login_for_access_token(
         "level": user.level,
         "office_type": getattr(user, "office_type", None) or user.level,
         "avatar_url": user.avatar_url,
-        "region_id": user.region_id,
-        "district_id": user.district_id,
-        "branch_id": user.branch_id
+        "region": user.region,
+        "district": user.district,
+        "branch": user.branch
     }
 
 @router.post("/register", response_model=schemas.UserResponse)
@@ -165,22 +165,22 @@ def update_system_user(
             db_user.office_type = user_in.office_type
         
         if db_user.level in ["Head Office", "Admin"]:
-            db_user.region_id = None
-            db_user.district_id = None
-            db_user.branch_id = None
+            db_user.region = None
+            db_user.district = None
+            db_user.branch = None
         else:
-            if user_in.region_id is not None:
-                db_user.region_id = user_in.region_id
-            if user_in.district_id is not None:
-                db_user.district_id = user_in.district_id
-            if user_in.branch_id is not None:
-                db_user.branch_id = user_in.branch_id
+            if user_in.region is not None:
+                db_user.region = user_in.region
+            if user_in.district is not None:
+                db_user.district = user_in.district
+            if user_in.branch is not None:
+                db_user.branch = user_in.branch
 
         if db_user.level == "Region":
-            db_user.district_id = None
-            db_user.branch_id = None
+            db_user.district = None
+            db_user.branch = None
         elif db_user.level == "District":
-            db_user.branch_id = None
+            db_user.branch = None
 
     if user_in.password:
         db_user.hashed_password = auth.get_password_hash(user_in.password)

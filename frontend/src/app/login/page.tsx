@@ -116,7 +116,7 @@ export default function Login() {
         {/* CBE Logo Brand Header */}
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="bg-gradient-to-tr from-white-50 to-white-100 rounded-2xl text-white">
-            <Image src={iconImage} alt="FCY Lead Generation" className="w-40 h-24" />
+            <Image src={iconImage} alt="FCY Lead Generation" className="w-40 h-24" priority />
           </div>
           <div className="flex flex-col mt-0">
             <p className="text-slate-400 text-xs mt-1">Sign in to access your retail mobilization dashboards</p>

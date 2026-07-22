@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from backend.database import get_db
-from backend.models import User, Customer, Transaction, Branch, UploadLog, District, Region
+from backend.models import User, Customer, Transaction, UploadLog
 from backend import schemas, auth
 from backend.lead_generator import trigger_lead_generation
 import pandas as pd
@@ -89,9 +89,8 @@ def upload_bole_atlantic_data(
                 
         records_count = 0
         
-        # Get branches dictionary
-        branches = {b.code: b.id for b in db.query(Branch).all()}
-        default_branch_id = ensure_upload_branch(db, "CBE_UPLOAD_DEFAULT")
+        # For strings, we just use the branch code as the branch name directly
+        default_branch = "CBE_UPLOAD_DEFAULT"
         
         for _, row in df.iterrows():
             ref = str(row["reference_number"])
@@ -108,7 +107,7 @@ def upload_bole_atlantic_data(
             currency = str(row["currency"])
             b_code = str(row["branch_code"])
             
-            branch_id = branches.get(b_code, default_branch_id)
+            branch = b_code if b_code else default_branch
             
             # Lookup customer by name or register them
             cust = db.query(Customer).filter(Customer.name == receiver).first()
@@ -141,7 +140,7 @@ def upload_bole_atlantic_data(
                 sender_organization=sender_org,
                 receiver_name=receiver,
                 timestamp=datetime.datetime.utcnow() - datetime.timedelta(days=random_offset_days()),
-                branch_id=branch_id
+                branch=branch
             )
             db.add(tx)
             records_count += 1
@@ -204,8 +203,7 @@ def upload_walkin_data(
             raise HTTPException(status_code=400, detail=f"Missing required columns: {missing_text}")
                 
         records_count = 0
-        branches = {b.code: b.id for b in db.query(Branch).all()}
-        default_branch_id = ensure_upload_branch(db, "CBE_UPLOAD_DEFAULT")
+        default_branch = "CBE_UPLOAD_DEFAULT"
         
         for _, row in df.iterrows():
             ref = str(row["reference_number"])
@@ -220,7 +218,7 @@ def upload_walkin_data(
             currency = str(row["currency"])
             b_code = str(row["branch_code"])
             
-            branch_id = branches.get(b_code, default_branch_id)
+            branch = b_code if b_code else default_branch
             
             # Lookup customer by name or register them
             cust = db.query(Customer).filter(Customer.name == cust_name).first()
@@ -252,7 +250,7 @@ def upload_walkin_data(
                 sender_name=cust_name,
                 receiver_name="CBE Counter",
                 timestamp=datetime.datetime.utcnow() - datetime.timedelta(days=random_offset_days()),
-                branch_id=branch_id
+                branch=branch
             )
             db.add(tx)
             records_count += 1
@@ -307,31 +305,7 @@ def get_upload_logs(
         results.append(res)
     return results
 
-def ensure_upload_branch(db: Session, fallback_code: str) -> int:
-    existing = db.query(Branch).filter(Branch.code == fallback_code).first()
-    if existing:
-        return existing.id
 
-    branches = db.query(Branch).all()
-    if branches:
-        return branches[0].id
-
-    region = db.query(Region).first()
-    if not region:
-        region = Region(name="Default Upload Region")
-        db.add(region)
-        db.flush()
-
-    district = db.query(District).filter(District.region_id == region.id).first()
-    if not district:
-        district = District(name="Default Upload District", region_id=region.id)
-        db.add(district)
-        db.flush()
-
-    branch = Branch(name="Default Upload Branch", code=fallback_code, district_id=district.id)
-    db.add(branch)
-    db.flush()
-    return branch.id
 
 
 def random_offset_days() -> int:

@@ -18,9 +18,10 @@ export default function ClientLayoutWrapper({
 
   useEffect(() => {
     const token = sessionStorage.getItem("fcy_token");
+    const userStr = localStorage.getItem("fcy_user");
     const isLoginPath = pathname === "/login";
 
-    if (!token) {
+    if (!token || !userStr) {
       setAuthorized(false);
       if (!isLoginPath) {
         router.replace("/login");
@@ -61,7 +62,7 @@ export default function ClientLayoutWrapper({
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="h-16 border-b border-slate-200/80 px-8 flex items-center justify-between bg-white/85 backdrop-blur-md z-10 shadow-sm shadow-slate-100">
           <h1 className="text-base font-bold text-slate-800 tracking-wide">FCY Lead Generation & Management</h1>
-          <Image src={iconImage} alt="FCY Lead Genration" className="w-40 h-24" />
+          <Image src={iconImage} alt="FCY Lead Genration" className="w-40 h-24" priority />
           <RoleSelector />
         </header>
         <main className="flex-1 overflow-y-auto p-8 bg-slate-50">

@@ -3,36 +3,6 @@ from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Foreig
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
-class Region(Base):
-    __tablename__ = "regions"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False, index=True)
-    
-    districts = relationship("District", back_populates="region")
-    users = relationship("User", back_populates="region")
-
-class District(Base):
-    __tablename__ = "districts"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, nullable=False, index=True)
-    region_id = Column(Integer, ForeignKey("regions.id"), nullable=False)
-    
-    region = relationship("Region", back_populates="districts")
-    branches = relationship("Branch", back_populates="district")
-    users = relationship("User", back_populates="district")
-
-class Branch(Base):
-    __tablename__ = "branches"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), nullable=False)
-    code = Column(String(20), unique=True, nullable=False, index=True)
-    district_id = Column(Integer, ForeignKey("districts.id"), nullable=False)
-    
-    district = relationship("District", back_populates="branches")
-    users = relationship("User", back_populates="branch")
-    transactions = relationship("Transaction", back_populates="branch")
-    leads = relationship("Lead", back_populates="assigned_branch")
-
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -44,25 +14,50 @@ class User(Base):
     office_type = Column(String(50), nullable=True) # e.g. "Branch", "District", "Region", "Head Office"
     avatar_url = Column(String(255), nullable=True)
     
-    region_id = Column(Integer, ForeignKey("regions.id"), nullable=True)
-    district_id = Column(Integer, ForeignKey("districts.id"), nullable=True)
-    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    # Geographic Information
+    region = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
+    branch = Column(String(100), nullable=True)
     
-    region = relationship("Region", back_populates="users")
-    district = relationship("District", back_populates="users")
-    branch = relationship("Branch", back_populates="users")
     follow_ups = relationship("FollowUp", back_populates="user")
     uploads = relationship("UploadLog", back_populates="uploaded_by")
 
 class Customer(Base):
     __tablename__ = "customers"
     id = Column(Integer, primary_key=True, index=True)
-    customer_number = Column(String(50), unique=True, nullable=True, index=True) # None for walk-ins
+    customer_number = Column(String(50), unique=True, nullable=True, index=True) # Customer_ID (e.g. CUST000001)
     name = Column(String(150), nullable=False, index=True)
+    gender = Column(String(20), nullable=True)
+    date_of_birth = Column(DateTime, nullable=True)
+    age = Column(Float, nullable=True)
+    nationality = Column(String(100), nullable=True)
+    country_of_residence = Column(String(100), nullable=True)
+    customer_segment = Column(String(100), nullable=True)
     customer_type = Column(String(50), nullable=False, default="Individual") # "Individual", "Corporate", "NGO", "Embassy", "Association"
+    occupation = Column(String(100), nullable=True)
+    employer_name = Column(String(150), nullable=True)
+    country_of_employment = Column(String(100), nullable=True)
     is_existing_account_holder = Column(Boolean, nullable=False, default=True)
     email = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
+    address = Column(Text, nullable=True)
+    
+    # Geographic Information
+    region = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
+    branch = Column(String(100), nullable=True)
+    
+    account_number = Column(String(50), nullable=True, index=True)
+    account_type = Column(String(50), nullable=True)
+    account_status = Column(String(50), nullable=True)
+    account_opening_date = Column(DateTime, nullable=True)
+    account_age = Column(Float, nullable=True)
+    account_currency = Column(String(10), nullable=True)
+    debit_account = Column(String(10), nullable=True)
+    credit_account = Column(String(10), nullable=True)
+    passport_number = Column(String(50), nullable=True)
+    national_id = Column(String(50), nullable=True)
+    
     ranking_score = Column(Float, nullable=True, default=0.0)
     ranking_label = Column(String(50), nullable=True)
     ranking_notes = Column(Text, nullable=True)
@@ -75,21 +70,39 @@ class Transaction(Base):
     __tablename__ = "transactions"
     id = Column(Integer, primary_key=True, index=True)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
-    reference_number = Column(String(100), unique=True, nullable=False, index=True)
-    channel = Column(String(50), nullable=False) # "SWIFT", "Western Union", "MoneyGram", "RIA", "Ethio-Direct", "ATM Exchange", "Branch POS", "Merchant POS", "Counter Purchase", "Bole Atlantic"
+    reference_number = Column(String(100), unique=True, nullable=False, index=True) # Transaction_ID
+    account_number = Column(String(50), nullable=True)
+    lead_type = Column(String(50), nullable=True)
+    channel = Column(String(50), nullable=False) # "SWIFT", "Western Union", etc.
     transaction_type = Column(String(50), nullable=False) # "Inward Remittance", "Outward Remittance", "FCY Purchase"
+    product_type = Column(String(100), nullable=True)
     amount = Column(Float, nullable=False)
     currency = Column(String(10), nullable=False, default="USD")
-    exchange_rate = Column(Float, nullable=False)
+    exchange_rate = Column(Float, nullable=False, default=1.0)
     usd_equivalent = Column(Float, nullable=False) # Base volume for reports
+    fcy_amount = Column(Float, nullable=True)
+    amount_in_birr = Column(Float, nullable=True)
+    outgoing_remittance_amount = Column(Float, nullable=True)
     sender_name = Column(String(150), nullable=True)
     sender_organization = Column(String(150), nullable=True)
     receiver_name = Column(String(150), nullable=True)
-    timestamp = Column(DateTime, nullable=False, index=True)
-    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False)
+    timestamp = Column(DateTime, nullable=False, index=True) # Transaction_Date
+    last_transaction_date = Column(DateTime, nullable=True)
+    transaction_timing = Column(Integer, nullable=True)
+    login_ip_address = Column(String(50), nullable=True)
+    device_id = Column(String(100), nullable=True)
+    device_type = Column(String(50), nullable=True)
+    login_country = Column(String(100), nullable=True)
+    mobile_app_usage = Column(String(10), nullable=True)
+    internet_banking_user = Column(String(10), nullable=True)
+    relationship_to_sender = Column(String(100), nullable=True)
+    
+    # Geographic Information
+    region = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
+    branch = Column(String(100), nullable=True)
     
     customer = relationship("Customer", back_populates="transactions")
-    branch = relationship("Branch", back_populates="transactions")
 
 class Lead(Base):
     __tablename__ = "leads"
@@ -97,18 +110,23 @@ class Lead(Base):
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
     customer_name = Column(String(150), nullable=False)
     lead_type = Column(String(50), nullable=False) # "Receiver", "Sender", "FCY Exchange"
+    task_type = Column(String(100), nullable=True, default="Conversion") # "Account Opening", "Cross-Selling", "Retention", "Conversion", "FCY Account", "Reactivation"
     category = Column(String(100), nullable=False) # "High Value Customer", "Regular Sender", "Corporate/Institutional Sender", "Strategic Partnership", "Sender Engagement"
     status = Column(String(50), nullable=False, default="Assigned") # "Assigned", "In Progress", "Contacted", "Converted", "Lost", "Reassigned"
     priority = Column(String(20), nullable=False, default="Medium") # "High", "Medium", "Low"
     usd_volume = Column(Float, nullable=False)
     frequency = Column(Integer, nullable=False)
     recommended_action = Column(Text, nullable=True)
-    assigned_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False)
+    
+    # Geographic Information
+    region = Column(String(100), nullable=True)
+    district = Column(String(100), nullable=True)
+    branch = Column(String(100), nullable=True)
+    
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     
     customer = relationship("Customer", back_populates="leads")
-    assigned_branch = relationship("Branch", back_populates="leads")
     follow_ups = relationship("FollowUp", back_populates="lead")
 
 class FollowUp(Base):

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import AnalyticsCharts from "@/components/AnalyticsCharts";
 import AIContextMenu from "@/components/AIContextMenu";
 import AIModal from "@/components/AIModal";
@@ -13,9 +13,185 @@ import {
   Briefcase, 
   Award, 
   Percent,
-  Search,
-  Filter
+  Filter,
+  ChevronDown,
+  ChevronUp,
+  DollarSign,
+  Handshake,
+  Send,
+  WalletCards,
+  ArrowDownToLine,
+  RefreshCw,
+  BadgePercent
 } from "lucide-react";
+
+// ─── KPI Card sub-component ──────────────────────────────────────────────────
+function KpiCard({
+  label,
+  value,
+  subLabel,
+  icon: Icon,
+  iconBg,
+  iconColor,
+  loading,
+  prefix = "",
+  suffix = "",
+  highlight,
+}: {
+  label: string;
+  value: string | number;
+  subLabel?: string;
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  loading: boolean;
+  prefix?: string;
+  suffix?: string;
+  highlight?: string;
+}) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between min-h-[120px] group hover:shadow-md transition-shadow duration-200">
+      {/* Decorative accent bar */}
+      <div className={`absolute top-0 left-0 w-full h-0.5 ${highlight ?? "bg-gradient-to-r from-[#8E288D] to-[#CFB53B]"} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+      <div className="flex justify-between items-start mb-2">
+        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-tight pr-2">{label}</span>
+        <div className={`p-2 ${iconBg} ${iconColor} rounded-xl flex-shrink-0`}>
+          <Icon size={15} />
+        </div>
+      </div>
+      {loading ? (
+        <div className="flex flex-col gap-2 mt-1">
+          <div className="h-6 w-20 bg-slate-100 rounded-lg animate-pulse" />
+          <div className="h-3 w-28 bg-slate-50 rounded animate-pulse" />
+        </div>
+      ) : (
+        <div className="flex flex-col mt-1">
+          <span className="text-2xl font-extrabold text-slate-800 tracking-tight leading-none">
+            {prefix}{typeof value === "number" ? value.toLocaleString(undefined, { maximumFractionDigits: 2 }) : value}{suffix}
+          </span>
+          {subLabel && <span className="text-[10px] text-slate-400 mt-1 font-semibold leading-tight">{subLabel}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── 10-metric KPI grid ───────────────────────────────────────────────────────
+function KpiGrid({ stats, loading }: { stats: any; loading: boolean }) {
+  const s = stats;
+  return (
+    <div>
+      {/* Primary row: 5 main metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-4">
+        <KpiCard
+          label="Total Leads Generated"
+          value={s?.total_leads_generated ?? 0}
+          subLabel="Receiver · Sender · FCY Exchange"
+          icon={Users}
+          iconBg="bg-indigo-50"
+          iconColor="text-indigo-600"
+          loading={loading}
+          highlight="bg-indigo-400"
+        />
+        <KpiCard
+          label="Total FCY Volume"
+          value={s ? s.total_fcy_volume.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}
+          subLabel="USD equivalent inflow"
+          icon={DollarSign}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
+          loading={loading}
+          prefix="$"
+          highlight="bg-emerald-400"
+        />
+        <KpiCard
+          label="Total FCY Customers"
+          value={s?.total_fcy_customers ?? 0}
+          subLabel={`${s?.total_existing_customers ?? 0} existing · ${s?.total_walk_ins ?? 0} walk-ins`}
+          icon={UserCheck}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-600"
+          loading={loading}
+          highlight="bg-amber-400"
+        />
+        <KpiCard
+          label="Conversion Rate"
+          value={s?.conversion_rate ?? 0}
+          subLabel="Leads converted to customers"
+          icon={BadgePercent}
+          iconBg="bg-rose-50"
+          iconColor="text-rose-600"
+          loading={loading}
+          suffix="%"
+          highlight="bg-rose-400"
+        />
+        <KpiCard
+          label="Total Walk-In Customers"
+          value={s?.total_walk_ins ?? 0}
+          subLabel="Non-account holders served"
+          icon={ArrowDownToLine}
+          iconBg="bg-sky-50"
+          iconColor="text-sky-600"
+          loading={loading}
+          highlight="bg-sky-400"
+        />
+      </div>
+      {/* Secondary row: 5 breakdown metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <KpiCard
+          label="Existing Customers"
+          value={s?.total_existing_customers ?? 0}
+          subLabel="Active CBE account holders"
+          icon={UserPlus}
+          iconBg="bg-purple-50"
+          iconColor="text-purple-600"
+          loading={loading}
+          highlight="bg-purple-400"
+        />
+        <KpiCard
+          label="Potential FCY Openings"
+          value={s?.total_potential_fcy_openings ?? 0}
+          subLabel="FCY exchange leads — assigned"
+          icon={WalletCards}
+          iconBg="bg-teal-50"
+          iconColor="text-teal-600"
+          loading={loading}
+          highlight="bg-teal-400"
+        />
+        <KpiCard
+          label="Potential FCY Loans"
+          value={s?.total_potential_fcy_loans ?? 0}
+          subLabel="High-value customer leads"
+          icon={Briefcase}
+          iconBg="bg-orange-50"
+          iconColor="text-orange-600"
+          loading={loading}
+          highlight="bg-orange-400"
+        />
+        <KpiCard
+          label="Total Sender Leads"
+          value={s?.total_sender_leads ?? 0}
+          subLabel="Remittance sender pipeline"
+          icon={Send}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-600"
+          loading={loading}
+          highlight="bg-blue-400"
+        />
+        <KpiCard
+          label="Strategic Partnerships"
+          value={s?.total_strategic_partnerships ?? 0}
+          subLabel="Institutional & corporate opps"
+          icon={Handshake}
+          iconBg="bg-fuchsia-50"
+          iconColor="text-fuchsia-600"
+          loading={loading}
+          highlight="bg-fuchsia-400"
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -33,8 +209,15 @@ export default function Dashboard() {
   const [selectedBranch, setSelectedBranch] = useState("");
   const [selectedCurrency, setSelectedCurrency] = useState("");
   const [selectedProduct, setSelectedProduct] = useState("");
+  const [selectedMto, setSelectedMto] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedCustomerType, setSelectedCustomerType] = useState("");
+  const [selectedAccountType, setSelectedAccountType] = useState("");
+  const [selectedLeadCategory, setSelectedLeadCategory] = useState("");
+  const [selectedReceiverSenderType, setSelectedReceiverSenderType] = useState("");
+  const [selectedLeadStatus, setSelectedLeadStatus] = useState("");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
   // Dashboard states
   const [stats, setStats] = useState<any>(null);
@@ -137,7 +320,9 @@ export default function Dashboard() {
   }, [selectedDistrict, districts]);
 
   // Fetch Dashboard Stats & Trends
-  const fetchDashboardData = async () => {
+  // Wrapped in useCallback so the function identity updates when any filter changes,
+  // preventing stale-closure bugs where the useEffect would call an old captured version.
+  const fetchDashboardData = useCallback(async () => {
     const token = sessionStorage.getItem("fcy_token");
     if (!token) return;
     setLoading(true);
@@ -146,17 +331,23 @@ export default function Dashboard() {
       const effectiveDistrict = isGeoScopedUser && user?.district_id ? String(user.district_id) : selectedDistrict;
       const effectiveBranch = isBranchScopedUser && user?.branch_id ? String(user.branch_id) : selectedBranch;
 
-      // 1. Build Query Parameters
+      // 1. Build Query Parameters (shared between stats and trends)
       const params = new URLSearchParams();
-      if (effectiveRegion) params.append("region_id", effectiveRegion);
-      if (effectiveDistrict) params.append("district_id", effectiveDistrict);
-      if (effectiveBranch) params.append("branch_id", effectiveBranch);
+      if (effectiveRegion) params.append("region", effectiveRegion);
+      if (effectiveDistrict) params.append("district", effectiveDistrict);
+      if (effectiveBranch) params.append("branch", effectiveBranch);
       if (selectedCurrency) params.append("currency", selectedCurrency);
       if (selectedProduct) params.append("product_type", selectedProduct);
+      if (selectedProduct && selectedProduct.includes("Remittance") && selectedMto) params.append("mto", selectedMto);
       if (startDate) params.append("start_date", startDate);
       if (endDate) params.append("end_date", endDate);
+      if (selectedCustomerType) params.append("customer_type", selectedCustomerType);
+      if (selectedAccountType) params.append("account_type", selectedAccountType);
+      if (selectedLeadCategory) params.append("lead_category", selectedLeadCategory);
+      if (selectedReceiverSenderType) params.append("receiver_sender_type", selectedReceiverSenderType);
+      if (selectedLeadStatus) params.append("lead_status", selectedLeadStatus);
 
-      // 2. Fetch Aggregated Statistics Card
+      // 2. Fetch Aggregated Statistics (KPI cards)
       const statsRes = await fetch(`/api/analytics/stats?${params.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -165,13 +356,23 @@ export default function Dashboard() {
         setStats(statsData);
       }
 
-      // 3. Fetch Trend Data Chart
+      // 3. Fetch Trend Data (charts) — pass all active filters so charts match KPIs
       const trendParams = new URLSearchParams();
       trendParams.append("view_type", trendView);
       if (effectiveRegion) trendParams.append("region_id", effectiveRegion);
       if (effectiveDistrict) trendParams.append("district_id", effectiveDistrict);
       if (effectiveBranch) trendParams.append("branch_id", effectiveBranch);
-      
+      if (selectedCurrency) trendParams.append("currency", selectedCurrency);
+      if (selectedProduct) trendParams.append("product_type", selectedProduct);
+      if (selectedProduct && selectedProduct.includes("Remittance") && selectedMto) trendParams.append("mto", selectedMto);
+      if (startDate) trendParams.append("start_date", startDate);
+      if (endDate) trendParams.append("end_date", endDate);
+      if (selectedCustomerType) trendParams.append("customer_type", selectedCustomerType);
+      if (selectedAccountType) trendParams.append("account_type", selectedAccountType);
+      if (selectedLeadCategory) trendParams.append("lead_category", selectedLeadCategory);
+      if (selectedReceiverSenderType) trendParams.append("receiver_sender_type", selectedReceiverSenderType);
+      if (selectedLeadStatus) trendParams.append("lead_status", selectedLeadStatus);
+
       const trendsRes = await fetch(`/api/analytics/trends?${trendParams.toString()}`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -185,22 +386,31 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    authReady,
+    user,
+    isGeoScopedUser,
+    isBranchScopedUser,
+    selectedRegion,
+    selectedDistrict,
+    selectedBranch,
+    selectedCurrency,
+    selectedProduct,
+    selectedMto,
+    startDate,
+    endDate,
+    selectedCustomerType,
+    selectedAccountType,
+    selectedLeadCategory,
+    selectedReceiverSenderType,
+    selectedLeadStatus,
+    trendView,
+  ]);
 
   useEffect(() => {
     if (!authReady) return;
     fetchDashboardData();
-  }, [
-    authReady,
-    selectedRegion, 
-    selectedDistrict, 
-    selectedBranch, 
-    selectedCurrency, 
-    selectedProduct, 
-    startDate, 
-    endDate, 
-    trendView
-  ]);
+  }, [fetchDashboardData]);
 
   // Close context menu on outside click
   useEffect(() => {
@@ -299,22 +509,24 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col gap-8" onContextMenu={(e) => handleContextMenu(e, "branch_dashboard")}>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex flex-col-2 gap-1">
+          <div className="flex flex-col gap-1">
             <h2 className="text-2xl font-bold text-slate-800 leading-tight">Branch Dashboard</h2>
             <p className="text-slate-500 text-sm mt-1">
               Showing activity and performance for <span className="font-semibold text-[#8E288D]">{branchName}</span>.
             </p>
           </div>
-          <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-            Branch scope locked
+          <div className="flex items-center gap-3">
+            <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              Branch scope locked
+            </div>
+            <button onClick={fetchDashboardData} className="px-4 py-2 bg-gradient-to-r from-[#8E288D] to-[#CFB53B] text-white rounded-xl text-xs font-semibold shadow-md hover:opacity-90 transition cursor-pointer flex items-center gap-2">
+              <RefreshCw size={13} /> Refresh
+            </button>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-600">
-            This view is filtered to the selected branch and does not show multi-branch filters or aggregate comparisons.
-          </p>
-        </div>
+        {/* Branch KPI Cards — all 10 metrics */}
+        <KpiGrid stats={stats} loading={loading} />
 
         <div onContextMenu={(e) => handleContextMenu(e, "branch_dashboard_charts")}>
           <AnalyticsCharts stats={stats} trends={trends} loading={loading} />
@@ -442,23 +654,41 @@ export default function Dashboard() {
 
           {/* Product Type Filter */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Channel/MTO</label>
+            <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Product Type</label>
             <select
               value={selectedProduct}
-              onChange={(e) => setSelectedProduct(e.target.value)}
+              onChange={(e) => {
+                setSelectedProduct(e.target.value);
+                if (!e.target.value.includes("Remittance")) setSelectedMto("");
+              }}
               className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             >
-              <option value="">All Channels</option>
-              <option value="SWIFT">SWIFT transfers</option>
-              <option value="Western Union">Western Union</option>
-              <option value="MoneyGram">MoneyGram</option>
-              <option value="RIA">RIA Money Transfer</option>
-              <option value="Ethio-Direct">Ethio-Direct App</option>
-              <option value="ATM Exchange">ATM Exchange</option>
-              <option value="Counter Purchase">Branch Counter</option>
-              <option value="Bole Atlantic">Bole Atlantic</option>
+              <option value="">All Products</option>
+              <option value="Inward Remittance">Inward Remittance</option>
+              <option value="Outward Remittance">Outward Remittance</option>
+              <option value="FCY Purchase">FCY Purchase</option>
             </select>
           </div>
+
+          {/* MTO / Channel Filter (Only visible if Product is Remittance) */}
+          {selectedProduct && selectedProduct.includes("Remittance") && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">MTO / Channel</label>
+              <select
+                value={selectedMto}
+                onChange={(e) => setSelectedMto(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 animate-in fade-in zoom-in-95 duration-200"
+              >
+                <option value="">All Channels</option>
+                <option value="SWIFT">SWIFT</option>
+                <option value="Western Union">Western Union</option>
+                <option value="MoneyGram">MoneyGram</option>
+                <option value="RIA">RIA Money Transfer</option>
+                <option value="Ethio-Direct">Ethio-Direct App</option>
+                <option value="Bole Atlantic">Bole Atlantic</option>
+              </select>
+            </div>
+          )}
 
           {/* Start Date */}
           <div className="flex flex-col gap-1.5">
@@ -482,100 +712,109 @@ export default function Dashboard() {
             />
           </div>
         </div>
+
+        {/* Advanced Filters Toggle */}
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3 mt-2">
+          <button
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-[#8E288D] hover:text-[#CFB53B] transition-colors"
+          >
+            {showAdvancedFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {showAdvancedFilters ? "Hide Advanced Filters" : "Show Advanced Filters"}
+          </button>
+        </div>
+
+        {/* Advanced Filters Drawer */}
+        {showAdvancedFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
+            {/* Customer Type Filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Customer Type</label>
+              <select
+                value={selectedCustomerType}
+                onChange={(e) => setSelectedCustomerType(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">All Types</option>
+                <option value="Individual">Individual</option>
+                <option value="Corporate">Corporate</option>
+                <option value="NGO">NGO</option>
+                <option value="Embassy">Embassy</option>
+                <option value="Association">Association</option>
+              </select>
+            </div>
+
+            {/* Account Type Filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Account Type</label>
+              <select
+                value={selectedAccountType}
+                onChange={(e) => setSelectedAccountType(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">All Types</option>
+                <option value="Account Holder">Existing Account Holder</option>
+                <option value="Walk-in">Walk-in Customer</option>
+              </select>
+            </div>
+
+            {/* Lead Category Filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Lead Category</label>
+              <select
+                value={selectedLeadCategory}
+                onChange={(e) => setSelectedLeadCategory(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">All Categories</option>
+                <option value="High Value Customer">High Value Customer</option>
+                <option value="Medium Value Customer">Medium Value Customer</option>
+                <option value="Low Value Customer">Low Value Customer</option>
+                <option value="Regular Sender">Regular Sender</option>
+                <option value="Corporate/Institutional Sender">Corporate/Institutional</option>
+                <option value="Strategic Partnership">Strategic Partnership</option>
+                <option value="Sender Engagement">Sender Engagement</option>
+              </select>
+            </div>
+
+            {/* Receiver/Sender Type Filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Transactor Type</label>
+              <select
+                value={selectedReceiverSenderType}
+                onChange={(e) => setSelectedReceiverSenderType(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">All Types</option>
+                <option value="Receiver">Receiver</option>
+                <option value="Sender">Sender</option>
+                <option value="FCY Exchange">FCY Exchange</option>
+              </select>
+            </div>
+
+            {/* Lead Status Filter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Lead Status</label>
+              <select
+                value={selectedLeadStatus}
+                onChange={(e) => setSelectedLeadStatus(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="Assigned">Assigned</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Contacted">Contacted</option>
+                <option value="Converted">Converted</option>
+                <option value="Lost">Lost</option>
+                <option value="Reassigned">Reassigned</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 items-center gap-4 z-5">
-        {/* KPI: Total Volume */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">FCY Volume Inflow</span>
-            <div className="p-2 bg-indigo-50 text-[#8E288D] rounded-xl">
-              <TrendingUp size={16} />
-            </div>
-          </div>
-          <div className="flex flex-col mt-2">
-            <span className="text-xl font-bold text-slate-800 tracking-tight">
-              ${stats ? stats.total_fcy_volume.toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}
-            </span>
-            <span className="text-[9px] text-slate-400 mt-1 font-semibold">USD equivalent (3 Years)</span>
-          </div>
-        </div>
-
-        {/* KPI: Total Leads */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Leads Generated</span>
-            <div className="p-2 bg-blue-50 text-[#8E288D] rounded-xl">
-              <Users size={16} />
-            </div>
-          </div>
-          <div className="flex flex-col mt-2">
-            <span className="text-xl font-bold text-slate-800 tracking-tight">
-              {stats ? stats.total_leads_generated : "0"}
-            </span>
-            <span className="text-[9px] text-slate-400 mt-1 font-semibold">Receiver + Sender leads</span>
-          </div>
-        </div>
-
-        {/* KPI: Conversion Rate */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Conversion Rate</span>
-            <div className="p-2 bg-emerald-50 text-[#8E288D] rounded-xl">
-              <Percent size={16} />
-            </div>
-          </div>
-          <div className="flex flex-col mt-2">
-            <span className="text-xl font-bold text-slate-800 tracking-tight">
-              {stats ? stats.conversion_rate : "0"}%
-            </span>
-            <span className="text-[9px] text-slate-400 mt-1 font-semibold">Leads updated to Converted</span>
-          </div>
-        </div>
-
-        {/* KPI: Customers Breakdown */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">FCY Customers</span>
-            <div className="p-2 bg-amber-50 text-[#8E288D] rounded-xl">
-              <UserCheck size={16} />
-            </div>
-          </div>
-          <div className="flex flex-col mt-1">
-            <span className="text-lg font-bold text-slate-800 tracking-tight">
-              {stats ? stats.total_fcy_customers : "0"}
-            </span>
-            <div className="flex gap-2 text-[9px] text-slate-400 mt-0.5 font-semibold">
-              <span>{stats ? stats.total_existing_customers : "0"} Accs</span>
-              <span>•</span>
-              <span className="text-[#CFB53B]">{stats ? stats.total_walk_ins : "0"} Walk-ins</span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI: Opportunities */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-md shadow-slate-100 relative overflow-hidden flex flex-col justify-between h-32">
-          <div className="flex justify-between items-start">
-            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Acquisitions</span>
-            <div className="p-2 bg-purple-50 text-[#8E288D] rounded-xl">
-              <Briefcase size={16} />
-            </div>
-          </div>
-          <div className="flex flex-col mt-1">
-            <div className="flex flex-col text-slate-700 text-xs font-bold leading-tight">
-              <div className="flex justify-between">
-                <span className="text-[9px] text-slate-400 font-semibold">FCY Account:</span>
-                <span className="text-slate-800 font-bold">{stats ? stats.total_potential_fcy_openings : "0"}</span>
-              </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-[9px] text-slate-400 font-semibold">FCY Loan:</span>
-                <span className="text-slate-800 font-bold">{stats ? stats.total_potential_fcy_loans : "0"}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Real-Time KPI Cards Grid — all 10 metrics */}
+      <KpiGrid stats={stats} loading={loading} />
 
       {/* Interactive Charts Engine */}
       {loading ? (

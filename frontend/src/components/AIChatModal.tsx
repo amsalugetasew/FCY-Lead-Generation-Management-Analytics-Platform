@@ -201,7 +201,7 @@ export default function AIChatModal({
     const historyMessages = currentSession?.messages ?? [];
     const userMessage = { role: "user", content } as const;
 
-    const nextMessages = [...historyMessages, { id: makeId(), role: "user", content, createdAt: new Date().toISOString() }];
+    const nextMessages = [...historyMessages, { id: makeId(), role: "user" as ChatRole, content, createdAt: new Date().toISOString() }];
     const nextSessions = sessions.map((session) => {
       if (session.id !== activeSessionId) return session;
       return {

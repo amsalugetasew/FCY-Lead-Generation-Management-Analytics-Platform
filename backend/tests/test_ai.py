@@ -37,20 +37,22 @@ def test_ai_analysis_calls_graq_and_redacts(monkeypatch):
         captured['extra'] = extra
         return {"mocked": True, "prompt_len": len(prompt)}
 
-    monkeypatch.setattr(ai_client, "call_graq", fake_call_graq)
+    monkeypatch.setattr(ai_client, "call_llm", fake_call_graq)
 
     # Mock auth to bypass JWT requirement by overriding FastAPI dependency
     import backend.auth as auth_mod
+    import backend.routes.ai as ai_route_mod
     from types import SimpleNamespace
     def fake_current_user():
         return SimpleNamespace(id=1, username="testuser", level="Head Office", office_type="Head Office", region_id=None, district_id=None, branch_id=None)
     main_mod.app.dependency_overrides[auth_mod.get_current_user] = lambda: fake_current_user()
+    monkeypatch.setattr(ai_route_mod, "_extract_text_from_llm_response", lambda x: x)
 
     # include a filter that contains PII-like text
     resp = client.post("/api/ai/analysis", json={"scope": "rankings", "intent": "insights", "filters": {"notes": "Contact john.doe@example.com or +1 555 1234"}})
     assert resp.status_code == 200
     data = resp.json()
-    assert data.get("source") == "graq"
+    assert data.get("source") == "groq"
     assert data.get("result", {}).get("mocked") is True
     # prompt should not contain raw email; filters passed in extra should be redacted
     assert "@example.com" not in captured['prompt']

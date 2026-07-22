@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
-from backend.models import Transaction, Customer, Lead, Branch
+from backend.models import Transaction, Customer, Lead
 import uuid
 
 def trigger_lead_generation(db: Session) -> int:
@@ -22,7 +22,9 @@ def trigger_lead_generation(db: Session) -> int:
         Transaction.customer_id,
         func.sum(Transaction.usd_equivalent).label("total_volume"),
         func.count(Transaction.id).label("tx_count"),
-        func.max(Transaction.branch_id).label("primary_branch")
+        func.max(Transaction.region).label("primary_region"),
+        func.max(Transaction.district).label("primary_district"),
+        func.max(Transaction.branch).label("primary_branch")
     ).filter(
         Transaction.timestamp >= three_years_ago,
         Transaction.customer_id.isnot(None),
@@ -51,6 +53,7 @@ def trigger_lead_generation(db: Session) -> int:
                 customer_id=customer.id,
                 customer_name=customer.name,
                 lead_type="Receiver",
+                task_type="Cross-Selling",
                 category="High Value Customer",
                 status="Assigned",
                 priority="High" if stat.total_volume >= 25000 else "Medium",
@@ -61,7 +64,9 @@ def trigger_lead_generation(db: Session) -> int:
                     "Recommend Priority Banking enrollment, Relationship Management services, "
                     "high-yield FCY Investment Products, or promote FCY Loan options for businesses."
                 ),
-                assigned_branch_id=stat.primary_branch or 1,
+                region=stat.primary_region or customer.region,
+                district=stat.primary_district or customer.district,
+                branch=stat.primary_branch or customer.branch,
                 created_at=datetime.utcnow()
             )
             db.add(new_lead)
@@ -75,7 +80,9 @@ def trigger_lead_generation(db: Session) -> int:
         func.sum(Transaction.usd_equivalent).label("total_volume"),
         func.count(Transaction.id).label("tx_count"),
         func.count(func.distinct(Transaction.customer_id)).label("beneficiary_count"),
-        func.max(Transaction.branch_id).label("primary_branch")
+        func.max(Transaction.region).label("primary_region"),
+        func.max(Transaction.district).label("primary_district"),
+        func.max(Transaction.branch).label("primary_branch")
     ).filter(
         Transaction.timestamp >= three_years_ago,
         Transaction.sender_name.isnot(None)
@@ -87,7 +94,6 @@ def trigger_lead_generation(db: Session) -> int:
         total_vol = stat.total_volume
         tx_count = stat.tx_count
         beneficiary_count = stat.beneficiary_count
-        branch_id = stat.primary_branch or 1
         
         # Check duplicate
         existing_lead = db.query(Lead).filter(
@@ -122,13 +128,16 @@ def trigger_lead_generation(db: Session) -> int:
             new_lead = Lead(
                 customer_name=sender_org if sender_org else sender_name,
                 lead_type="Sender",
+                task_type="Lead Generation",
                 category=category,
                 status="Assigned",
                 priority="High" if total_vol >= 30000 else "Medium",
                 usd_volume=total_vol,
                 frequency=tx_count,
                 recommended_action=rec_action,
-                assigned_branch_id=branch_id,
+                region=stat.primary_region,
+                district=stat.primary_district,
+                branch=stat.primary_branch,
                 created_at=datetime.utcnow()
             )
             db.add(new_lead)
@@ -140,16 +149,19 @@ def trigger_lead_generation(db: Session) -> int:
             new_lead = Lead(
                 customer_name=sender_name,
                 lead_type="Sender",
+                task_type="Conversion",
                 category="Regular Sender",
                 status="Assigned",
                 priority="Medium",
                 usd_volume=total_vol,
                 frequency=tx_count,
                 recommended_action=(
-                    "Regular individual remittance sender. Recommend onboarding the recipient to diaspora banking services, "
+                    "Regular individual remittance remittance sender. Recommend onboarding the recipient to diaspora banking services, "
                     "offering preferential exchange rates for high-frequency transfers, and presenting digital remittance platforms."
                 ),
-                assigned_branch_id=branch_id,
+                region=stat.primary_region,
+                district=stat.primary_district,
+                branch=stat.primary_branch,
                 created_at=datetime.utcnow()
             )
             db.add(new_lead)
@@ -162,7 +174,9 @@ def trigger_lead_generation(db: Session) -> int:
         Transaction.receiver_name,
         func.sum(Transaction.usd_equivalent).label("total_volume"),
         func.count(Transaction.id).label("tx_count"),
-        func.max(Transaction.branch_id).label("primary_branch")
+        func.max(Transaction.region).label("primary_region"),
+        func.max(Transaction.district).label("primary_district"),
+        func.max(Transaction.branch).label("primary_branch")
     ).join(
         Customer, Transaction.customer_id == Customer.id
     ).filter(
@@ -176,7 +190,6 @@ def trigger_lead_generation(db: Session) -> int:
         cust_name = stat.receiver_name or f"Walk-in Customer #{cust_id}"
         total_vol = stat.total_volume
         tx_count = stat.tx_count
-        branch_id = stat.primary_branch or 1
         
         # Check duplicate
         existing_lead = db.query(Lead).filter(
@@ -193,6 +206,7 @@ def trigger_lead_generation(db: Session) -> int:
             customer_id=cust_id,
             customer_name=cust_name,
             lead_type="FCY Exchange",
+            task_type="Account Opening",
             category="Sender Engagement" if total_vol < 3000 else "High Value Customer",
             status="Assigned",
             priority="High" if total_vol >= 10000 else "Medium",
@@ -202,7 +216,9 @@ def trigger_lead_generation(db: Session) -> int:
                 "Walk-in customer performing walk-in cash FCY exchange. "
                 "Target for full FCY account opening, promote CBE mobile banking app, and provide SKIS notification."
             ),
-            assigned_branch_id=branch_id,
+            region=stat.primary_region,
+            district=stat.primary_district,
+            branch=stat.primary_branch,
             created_at=datetime.utcnow()
         )
         db.add(new_lead)

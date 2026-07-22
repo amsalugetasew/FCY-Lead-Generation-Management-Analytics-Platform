@@ -12,34 +12,41 @@ except Exception:  # pragma: no cover
     pymysql = None
 
 try:
+    import oracledb  # type: ignore
+except Exception:  # pragma: no cover
+    oracledb = None
+
+try:
     import cx_Oracle  # type: ignore
 except Exception:  # pragma: no cover
     cx_Oracle = None
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(PROJECT_ROOT / ".env", override=False)
+load_dotenv(PROJECT_ROOT / ".env", override=True)
 
 
 def build_database_url() -> str:
+    db_provider = os.getenv("DB_PROVIDER", "mysql").lower()
+    if db_provider == "oracle":
+        db_user = os.getenv("ORACLE_USER", os.getenv("DB_USER", "system"))
+        db_password = os.getenv("ORACLE_PASSWORD", os.getenv("DB_PASSWORD", ""))
+        db_host = os.getenv("ORACLE_HOST", os.getenv("DB_HOST", "localhost"))
+        db_port = os.getenv("ORACLE_PORT", os.getenv("DB_PORT", "1521"))
+        db_service = os.getenv("ORACLE_SERVICE", os.getenv("DB_SERVICE", "xe"))
+        driver = "oracledb" if oracledb is not None else "cx_oracle"
+        return f"oracle+{driver}://{quote_plus(db_user)}:{quote_plus(db_password)}@{db_host}:{db_port}/?service_name={db_service}"
+
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         return database_url
 
-    db_provider = os.getenv("DB_PROVIDER", "mysql").lower()
-    if db_provider == "oracle":
-        db_user = os.getenv("DB_USER", "system")
-        db_password = os.getenv("DB_PASSWORD", "")
-        db_host = os.getenv("DB_HOST", "localhost")
-        db_port = os.getenv("DB_PORT", "1521")
-        db_service = os.getenv("DB_SERVICE", "xe")
-        return f"oracle+cx_oracle://{quote_plus(db_user)}:{quote_plus(db_password)}@{db_host}:{db_port}/{db_service}"
-
-    db_user = os.getenv("DB_USER", "root")
-    db_password = os.getenv("DB_PASSWORD", "")
-    db_host = os.getenv("DB_HOST", "localhost")
-    db_port = os.getenv("DB_PORT", "3306")
-    db_name = os.getenv("DB_NAME", "fcy_leads")
+    db_user = os.getenv("MYSQL_USER", os.getenv("DB_USER", "root"))
+    db_password = os.getenv("MYSQL_PASSWORD", os.getenv("DB_PASSWORD", ""))
+    db_host = os.getenv("MYSQL_HOST", os.getenv("DB_HOST", "localhost"))
+    db_port = os.getenv("MYSQL_PORT", os.getenv("DB_PORT", "3306"))
+    db_name = os.getenv("MYSQL_DB", os.getenv("DB_NAME", "fcy_leads"))
     return f"mysql+pymysql://{quote_plus(db_user)}:{quote_plus(db_password)}@{db_host}:{db_port}/{db_name}"
+
 
 
 DATABASE_URL = build_database_url()
@@ -123,6 +130,39 @@ def ensure_user_columns():
 
 
 ensure_user_columns()
+
+
+def ensure_leads_columns():
+    """Add task_type column to leads table if it does not exist (safe migration) and populate realistic defaults."""
+    try:
+        with engine.connect() as conn:
+            # MySQL / MariaDB
+            if DATABASE_URL.startswith("mysql"):
+                result = conn.execute(text("SHOW COLUMNS FROM leads LIKE 'task_type'"))
+                if result.first() is None:
+                    conn.execute(text("ALTER TABLE leads ADD COLUMN task_type VARCHAR(100) NULL DEFAULT 'Conversion'"))
+                    conn.commit()
+                    print("Added missing leads.task_type column.")
+            else:
+                # SQLite / other — try pragmatically
+                result = conn.execute(text("PRAGMA table_info(leads)"))
+                cols = [row[1] for row in result.fetchall()]
+                if "task_type" not in cols:
+                    conn.execute(text("ALTER TABLE leads ADD COLUMN task_type VARCHAR(100) DEFAULT 'Conversion'"))
+                    conn.commit()
+                    print("Added missing leads.task_type column (SQLite).")
+            
+            # Populate realistic task types for existing/mock data based on lead_type
+            conn.execute(text("UPDATE leads SET task_type = 'Account Opening' WHERE lead_type = 'FCY Exchange' AND (task_type = 'Conversion' OR task_type IS NULL)"))
+            conn.execute(text("UPDATE leads SET task_type = 'Cross-Selling' WHERE lead_type = 'Receiver' AND (task_type = 'Conversion' OR task_type IS NULL)"))
+            conn.execute(text("UPDATE leads SET task_type = 'Lead Generation' WHERE lead_type = 'Sender' AND (task_type = 'Conversion' OR task_type IS NULL)"))
+            conn.commit()
+    except Exception as e:
+        print(f"leads column check/update skipped or failed: {e}")
+
+
+
+ensure_leads_columns()
 
 
 def get_db():
